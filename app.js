@@ -2,10 +2,6 @@
 const analyzeBtn = document.getElementById('analyze-btn');
 analyzeBtn.addEventListener('click', loadAndAnalyzeData);
 
-// 차트를 그릴 canvas 요소 가져오기
-const chartCanvas = document.getElementById('myChart');
-let myChart = null; // 차트 객체를 저장할 변수
-
 function loadAndAnalyzeData() {
     // data_erp.xlsx 파일을 fetch로 읽기
     fetch('data_erp.xlsx')
@@ -26,10 +22,17 @@ function loadAndAnalyzeData() {
             // 시트 데이터를 JSON 형태로 변환
             const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-            console.log(jsonData); // 개발자 도구에서 데이터 확인
+            console.log('원본 데이터:', jsonData); // 개발자 도구에서 데이터 확인
 
-            // 데이터 분석 및 차트 생성 함수 호출
-            analyzeAndDrawChart(jsonData);
+            // "규격" 헤더가 없거나 빈 행 필터링
+            const filteredData = filterDataBySpec(jsonData);
+            console.log('필터링된 데이터:', filteredData);
+
+            // 전역 변수에 데이터 저장 (향후 사용을 위해)
+            window.excelData = filteredData;
+
+            // 데이터를 테이블로 표시
+            displayDataAsTable(filteredData);
         })
         .catch(error => {
             console.error('파일 로드 오류:', error);
@@ -37,53 +40,87 @@ function loadAndAnalyzeData() {
         });
 }
 
-function analyzeAndDrawChart(data) {
-    // --- 데이터 분석 로직 (예시) ---
-    // '항목'별 '값'을 합산한다고 가정해봅시다.
-    // 예시 엑셀 데이터: [{항목: '과일', 값: 10}, {항목: '채소', 값: 20}, {항목: '과일', 값: 15}]
-
-    const analysisResult = {};
-
-    data.forEach(row => {
-        const category = row['항목']; // 엑셀의 '항목' 열
-        const value = row['값'];      // 엑셀의 '값' 열
-
-        if (analysisResult[category]) {
-            analysisResult[category] += value;
-        } else {
-            analysisResult[category] = value;
-        }
+function filterDataBySpec(data) {
+    // "규격" 컬럼이 있는지 확인
+    if (data.length === 0) return data;
+    
+    const headers = Object.keys(data[0]);
+    const hasSpecColumn = headers.includes('규격');
+    
+    if (!hasSpecColumn) {
+        console.warn('데이터에 "규격" 컬럼이 없습니다.');
+        return data; // 규격 컬럼이 없으면 원본 데이터 반환
+    }
+    
+    // "규격" 값이 있는 행만 필터링 (null, undefined, 빈 문자열 제외)
+    const filteredData = data.filter(row => {
+        const specValue = row['규격'];
+        return specValue !== null && 
+               specValue !== undefined && 
+               specValue !== '' && 
+               String(specValue).trim() !== '';
     });
+    
+    console.log(`총 ${data.length}행 중 ${filteredData.length}행이 유효한 규격을 가지고 있습니다.`);
+    
+    return filteredData;
+}
 
-    const labels = Object.keys(analysisResult); // 차트의 X축 이름들 (예: ['과일', '채소'])
-    const values = Object.values(analysisResult); // 차트의 Y축 값들 (예: [25, 20])
-
-    // --- 차트 그리기 로직 ---
-    if (myChart) {
-        myChart.destroy(); // 이전에 그려진 차트가 있다면 파괴
+function displayDataAsTable(data) {
+    const tableContainer = document.getElementById('data-table');
+    
+    if (data.length === 0) {
+        tableContainer.innerHTML = '<p>표시할 데이터가 없습니다.</p>';
+        return;
     }
 
-    myChart = new Chart(chartCanvas, {
-        type: 'bar', // 막대그래프
-        data: {
-            labels: labels,
-            datasets: [{
-                label: '항목별 합계',
-                data: values,
-                backgroundColor: [
-                    'rgba(255, 99, 132, 0.5)',
-                    'rgba(54, 162, 235, 0.5)',
-                    'rgba(255, 206, 86, 0.5)',
-                    'rgba(75, 192, 192, 0.5)',
-                ]
-            }]
-        },
-        options: {
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            }
-        }
+    // 데이터 개수 정보 추가
+    let tableHTML = `<div class="data-info">총 ${data.length}개의 유효한 데이터가 있습니다.</div>`;
+    
+    // 테이블 생성
+    tableHTML += '<table class="data-table">';
+    
+    // 헤더 생성 (첫 번째 행의 키들을 헤더로 사용)
+    const headers = Object.keys(data[0]);
+    tableHTML += '<thead><tr>';
+    headers.forEach(header => {
+        tableHTML += `<th>${header}</th>`;
     });
+    tableHTML += '</tr></thead>';
+    
+    // 데이터 행 생성
+    tableHTML += '<tbody>';
+    data.forEach((row, index) => {
+        tableHTML += `<tr data-row-index="${index}">`;
+        headers.forEach(header => {
+            const cellValue = row[header] || ''; // undefined 값 처리
+            tableHTML += `<td>${cellValue}</td>`;
+        });
+        tableHTML += '</tr>';
+    });
+    tableHTML += '</tbody></table>';
+    
+    // 테이블을 DOM에 추가
+    tableContainer.innerHTML = tableHTML;
 }
+
+// 데이터 접근을 위한 헬퍼 함수들
+function getExcelData() {
+    return window.excelData || [];
+}
+
+function getDataBySpec(specValue) {
+    const data = getExcelData();
+    return data.filter(row => row['규격'] === specValue);
+}
+
+function getAllSpecs() {
+    const data = getExcelData();
+    const specs = data.map(row => row['규격']).filter(spec => spec);
+    return [...new Set(specs)]; // 중복 제거
+}
+
+// 콘솔에서 사용할 수 있도록 전역 함수로 등록
+window.getExcelData = getExcelData;
+window.getDataBySpec = getDataBySpec;
+window.getAllSpecs = getAllSpecs;
