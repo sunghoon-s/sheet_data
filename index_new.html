@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>엑셀 데이터 분석 도구</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="title-bar">
+            <h1>엑셀 데이터 분석 도구</h1>
+            <div class="button-group">
+                <input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="display:none">
+                <button id="open-file-btn" class="btn btn-primary">파일 열기</button>
+                <button id="download-btn" class="btn btn-secondary" style="display: none;">CSV 다운로드</button>
+            </div>
+        </div>
+
+        <div id="progress-container" style="display: none;">
+            <div class="progress-bar">
+                <div id="progress-fill"></div>
+            </div>
+            <div id="progress-text">데이터를 불러오는 중...</div>
+        </div>
+
+        <div id="data-table"></div>
+    </div>
+
+    <script>
+        const openFileBtn = document.getElementById('open-file-btn');
+        const fileInput = document.getElementById('file-input');
+        const downloadBtn = document.getElementById('download-btn');
+
+        openFileBtn.addEventListener('click', () => {
+            console.log('파일 열기 버튼 클릭됨');
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                console.log('선택된 파일:', file.name);
+                // 파일 처리 로직 추가 가능
+            } else {
+                console.log('파일이 선택되지 않음');
+            }
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            console.log('CSV 다운로드 버튼 클릭됨');
+            // 다운로드 로직 추가 가능
+        });
+    </script>
+</body>
+</html>
