@@ -1,11 +1,12 @@
 // 분석 버튼에 이벤트 리스너 추가
-const analyzeBtn = document.getElementById('analyze-btn');
-const downloadBtn = document.getElementById('download-btn');
-const fileInput = document.getElementById('excel-file-input');
-
 analyzeBtn.addEventListener('click', openFileDialog);
 downloadBtn.addEventListener('click', downloadCSV);
-fileInput.addEventListener('change', handleFileSelect);
+
+const analyzeBtn = document.getElementById('analyze-btn');
+const downloadBtn = document.getElementById('download-btn');
+
+analyzeBtn.addEventListener('click', fetchAndParseCSV);
+downloadBtn.addEventListener('click', downloadCSV);
 
 // 성능 최적화 변수들
 let currentData = [];
@@ -13,70 +14,53 @@ let displayedRows = 0;
 const BATCH_SIZE = 500; // 한 번에 표시할 행 수
 const RENDER_DELAY = 10; // 렌더링 간 딜레이 (ms)
 
-function openFileDialog() {
-    fileInput.click();
-}
 
-function handleFileSelect(event) {
-    const file = event.target.files[0];
-    if (file) {
-        // 다운로드 버튼 숨기기
-        downloadBtn.style.display = 'none';
-        
-        // 파일 정보 표시
-        showProgress(0, `"${file.name}" 파일을 불러오는 중...`);
-        
-        // 버튼 비활성화
-        analyzeBtn.disabled = true;
-        analyzeBtn.textContent = '처리 중...';
-        
-        // 파일 읽기
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const data = e.target.result;
-            showProgress(20, '파일을 읽는 중...');
-            
-            // 파일 데이터 처리
+function fetchAndParseCSV() {
+    // 다운로드 버튼 숨기기
+    downloadBtn.style.display = 'none';
+    showProgress(0, 'CSV 파일을 불러오는 중...');
+    analyzeBtn.disabled = true;
+    analyzeBtn.textContent = '처리 중...';
+
+    fetch('data_erp.csv')
+        .then(response => {
+            if (!response.ok) throw new Error('CSV 파일을 찾을 수 없습니다.');
+            return response.text();
+        })
+        .then(csvText => {
+            showProgress(20, 'CSV 데이터를 파싱하는 중...');
             setTimeout(() => {
-                parseExcelFile(data);
+                parseCSVData(csvText);
             }, 100);
-        };
-        
-        reader.onerror = function() {
-            handleError(new Error('파일 읽기에 실패했습니다.'));
-        };
-        
-        reader.readAsArrayBuffer(file);
-    }
-}
-
-function parseExcelFile(data) {
-    showProgress(40, '엑셀 데이터를 파싱하는 중...');
-    
-    // 비동기 처리를 위해 setTimeout 사용
-    setTimeout(() => {
-        try {
-            // SheetJS를 사용해 엑셀 파일 읽기
-            const workbook = XLSX.read(data, { type: 'array' });
-
-            // 첫 번째 시트 이름 가져오기
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
-
-            // 시트 데이터를 JSON 형태로 변환
-            const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-            showProgress(60, `${jsonData.length}개 행을 처리하는 중...`);
-            console.log('원본 데이터:', jsonData);
-
-            // 비동기로 데이터 처리
-            setTimeout(() => {
-                processDataAsync(jsonData);
-            }, 100);
-            
-        } catch (error) {
+        })
+        .catch(error => {
             handleError(error);
-        }
+        });
+}
+
+function parseCSVData(csvText) {
+    // CSV 파싱 (쉼표 구분, 첫 행 헤더)
+    const rows = csvText.trim().split(/\r?\n/).map(row => row.split(','));
+    if (rows.length < 2) {
+        handleError(new Error('CSV 데이터가 비어있거나 잘못되었습니다.'));
+        return;
+    }
+    // 빈 헤더(공백) 컬럼 제거
+    const headers = rows[0].map(h => h.trim());
+    const validIndexes = headers.map((h, i) => h ? i : -1).filter(i => i !== -1);
+    const filteredHeaders = validIndexes.map(i => headers[i]);
+    const data = rows.slice(1).map(row => {
+        const obj = {};
+        validIndexes.forEach((colIdx, i) => {
+            obj[filteredHeaders[i]] = (row[colIdx] || '').trim();
+        });
+        return obj;
+    });
+    // "규격"이 없는 행 제거
+    const filteredData = data.filter(row => row['규격'] && row['규격'].trim() !== '');
+    showProgress(60, `${filteredData.length}개 행을 처리하는 중...`);
+    setTimeout(() => {
+        processDataAsync(filteredData);
     }, 100);
 }
 
@@ -158,11 +142,7 @@ function hideProgress() {
 function resetButton() {
     const analyzeBtn = document.getElementById('analyze-btn');
     analyzeBtn.disabled = false;
-    analyzeBtn.textContent = '엑셀파일열기';
-    
-    // 파일 input 초기화
-    const fileInput = document.getElementById('excel-file-input');
-    fileInput.value = '';
+    analyzeBtn.textContent = 'CSV파일열기';
 }
 
 // 배치 단위로 데이터 포맷팅
