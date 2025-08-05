@@ -186,7 +186,7 @@ async function formatDataInBatches(data) {
         // 배치 처리 후 잠시 대기 (UI 블로킹 방지)
         if (i + batchSize < data.length) {
             await delay(5);
-        }
+const fileInput = document.getElementById('excel-file-input');
     }
     
     return result;
@@ -196,22 +196,22 @@ async function formatDataInBatches(data) {
 async function displayDataWithVirtualScrolling(data) {
     const tableContainer = document.getElementById('data-table');
     
-    if (data.length === 0) {
+    showProgress(0, '엑셀/CSV 파일을 불러오는 중...');
         tableContainer.innerHTML = '<p>표시할 데이터가 없습니다.</p>';
         return;
     }
 
     // 초기 컨테이너 설정
     let html = `<div class="data-info">총 ${data.length}개의 유효한 데이터가 있습니다.</div>`;
-    html += '<div class="table-container">';
+        showProgress(20, '파일을 읽는 중...');
     html += '<table class="data-table">';
-    
+            parseExcelOrCSVFile(csvText, file.name);
     // 헤더 생성
     const headers = Object.keys(data[0]);
     html += '<thead><tr>';
     headers.forEach(header => {
         html += `<th>${header}</th>`;
-    });
+    reader.readAsArrayBuffer(file);
     html += '</tr></thead>';
     html += '<tbody id="table-body"></tbody>';
     html += '</table>';
