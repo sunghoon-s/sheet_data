@@ -1,12 +1,11 @@
-// 분석 버튼에 이벤트 리스너 추가
-analyzeBtn.addEventListener('click', openFileDialog);
-downloadBtn.addEventListener('click', downloadCSV);
-
+// 분석 버튼 및 파일 input, 다운로드 버튼
 const analyzeBtn = document.getElementById('analyze-btn');
 const downloadBtn = document.getElementById('download-btn');
+const fileInput = document.getElementById('csv-file-input');
 
-analyzeBtn.addEventListener('click', fetchAndParseCSV);
+analyzeBtn.addEventListener('click', openFileDialog);
 downloadBtn.addEventListener('click', downloadCSV);
+fileInput.addEventListener('change', handleFileSelect);
 
 // 성능 최적화 변수들
 let currentData = [];
@@ -15,27 +14,32 @@ const BATCH_SIZE = 500; // 한 번에 표시할 행 수
 const RENDER_DELAY = 10; // 렌더링 간 딜레이 (ms)
 
 
-function fetchAndParseCSV() {
-    // 다운로드 버튼 숨기기
+
+function openFileDialog() {
+    fileInput.value = '';
+    fileInput.click();
+}
+
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
     downloadBtn.style.display = 'none';
     showProgress(0, 'CSV 파일을 불러오는 중...');
     analyzeBtn.disabled = true;
     analyzeBtn.textContent = '처리 중...';
 
-    fetch('data_erp.csv')
-        .then(response => {
-            if (!response.ok) throw new Error('CSV 파일을 찾을 수 없습니다.');
-            return response.text();
-        })
-        .then(csvText => {
-            showProgress(20, 'CSV 데이터를 파싱하는 중...');
-            setTimeout(() => {
-                parseCSVData(csvText);
-            }, 100);
-        })
-        .catch(error => {
-            handleError(error);
-        });
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const csvText = e.target.result;
+        showProgress(20, 'CSV 데이터를 파싱하는 중...');
+        setTimeout(() => {
+            parseCSVData(csvText);
+        }, 100);
+    };
+    reader.onerror = function() {
+        handleError(new Error('CSV 파일 읽기에 실패했습니다.'));
+    };
+    reader.readAsText(file, 'utf-8');
 }
 
 function parseCSVData(csvText) {
