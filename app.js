@@ -3,9 +3,15 @@ const analyzeBtn = document.getElementById('analyze-btn');
 const downloadBtn = document.getElementById('download-btn');
 const fileInput = document.getElementById('csv-file-input');
 
-analyzeBtn.addEventListener('click', openFileDialog);
+analyzeBtn.addEventListener('click', () => {
+    console.log('Analyze button clicked');
+    openFileDialog();
+});
 downloadBtn.addEventListener('click', downloadCSV);
-fileInput.addEventListener('change', handleFileSelect);
+fileInput.addEventListener('change', (event) => {
+    console.log('File selected:', event.target.files[0]?.name);
+    handleFileSelect(event);
+});
 
 // 성능 최적화 변수들
 let currentData = [];
