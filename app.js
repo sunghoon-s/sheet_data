@@ -53,14 +53,12 @@ function parseCSVData(csvText) {
         handleError(new Error('CSV 데이터가 비어있거나 잘못되었습니다.'));
         return;
     }
-    // 빈 헤더(공백) 컬럼 제거
+    // 헤더 트림 처리
     const headers = rows[0].map(h => h.trim());
-    const validIndexes = headers.map((h, i) => h ? i : -1).filter(i => i !== -1);
-    const filteredHeaders = validIndexes.map(i => headers[i]);
     const data = rows.slice(1).map(row => {
         const obj = {};
-        validIndexes.forEach((colIdx, i) => {
-            obj[filteredHeaders[i]] = (row[colIdx] || '').trim();
+        headers.forEach((header, i) => {
+            obj[header] = (row[i] || '').trim();
         });
         return obj;
     });
