@@ -2,29 +2,25 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>빈 화면</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-            background-color: #ffffff;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .container {
-            text-align: center;
-            color: #666;
-        }
-    </style>
+    <title>엑셀 데이터 분석기</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>빈 화면</h1>
-        <p>여기에 내용을 추가하세요.</p>
+        <h1>엑셀 데이터 분석 및 시각화</h1>
+        <p>아래 버튼을 클릭하여 데이터를 분석하세요.</p>
+
+        <button id="analyze-btn" class="btn btn-primary">데이터 분석하기</button>
+
+        <div class="chart-container">
+            <canvas id="myChart"></canvas>
+        </div>
+
+        <div id="data-table"></div>
     </div>
+
+    <script src="app.js"></script>
 </body>
 </html>
