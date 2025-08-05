@@ -29,6 +29,11 @@ body {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
+.button-group {
+    display: flex;
+    gap: 10px;
+}
+
 .title-bar h1 {
     color: white;
     font-size: 1.8rem;
@@ -54,6 +59,16 @@ body {
     border-color: rgba(255, 255, 255, 0.5);
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.title-bar .btn-secondary {
+    background-color: rgba(108, 117, 125, 0.8);
+    border-color: rgba(108, 117, 125, 0.5);
+}
+
+.title-bar .btn-secondary:hover {
+    background-color: rgba(90, 98, 104, 0.9);
+    border-color: rgba(90, 98, 104, 0.7);
 }
 h1 {
     text-align: center;
@@ -249,6 +264,15 @@ h1 {
         gap: 15px;
         text-align: center;
         padding: 15px;
+    }
+    
+    .button-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .button-group .btn {
+        width: 100%;
     }
     
     .title-bar h1 {

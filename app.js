@@ -1,6 +1,8 @@
 // 분석 버튼에 이벤트 리스너 추가
 const analyzeBtn = document.getElementById('analyze-btn');
+const downloadBtn = document.getElementById('download-btn');
 analyzeBtn.addEventListener('click', loadAndAnalyzeData);
+downloadBtn.addEventListener('click', downloadCSV);
 
 // 성능 최적화 변수들
 let currentData = [];
@@ -110,6 +112,9 @@ async function processDataAsync(jsonData) {
         await displayDataWithVirtualScrolling(formattedData);
         
         showProgress(100, `완료! ${formattedData.length}개의 데이터를 성공적으로 로드했습니다.`);
+        
+        // 다운로드 버튼 활성화
+        downloadBtn.style.display = 'inline-block';
         
         setTimeout(() => {
             hideProgress();
@@ -511,3 +516,133 @@ function getAllSpecs() {
 window.getExcelData = getExcelData;
 window.getDataBySpec = getDataBySpec;
 window.getAllSpecs = getAllSpecs;
+
+// CSV 다운로드 함수
+function downloadCSV() {
+    if (!currentData || currentData.length === 0) {
+        alert('다운로드할 데이터가 없습니다. 먼저 "데이터 보기"를 클릭해주세요.');
+        return;
+    }
+
+    try {
+        // CSV 문자열 생성
+        const csvContent = convertToCSV(currentData);
+        
+        // Blob 생성 (UTF-8 BOM 추가로 한글 깨짐 방지)
+        const BOM = '\uFEFF';
+        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+        
+        // 파일명 생성 (현재 날짜와 시간 포함)
+        const now = new Date();
+        const timestamp = now.toISOString().slice(0, 19).replace(/[:-]/g, '').replace('T', '_');
+        const filename = `output_${timestamp}.csv`;
+        
+        // 다운로드 실행
+        downloadFile(blob, filename);
+        
+        // 사용자에게 알림
+        showNotification(`CSV 파일이 다운로드되었습니다: ${filename}`, 'success');
+        
+    } catch (error) {
+        console.error('CSV 다운로드 오류:', error);
+        alert('CSV 파일 생성 중 오류가 발생했습니다: ' + error.message);
+    }
+}
+
+// 데이터를 CSV 형식으로 변환
+function convertToCSV(data) {
+    if (data.length === 0) return '';
+    
+    const headers = Object.keys(data[0]);
+    
+    // 헤더 행 생성
+    const csvRows = [];
+    csvRows.push(headers.map(header => `"${header}"`).join(','));
+    
+    // 데이터 행 생성
+    data.forEach(row => {
+        const values = headers.map(header => {
+            const value = row[header] || '';
+            // CSV 이스케이프 처리 (쌍따옴표와 쉼표 처리)
+            const escapedValue = String(value).replace(/"/g, '""');
+            return `"${escapedValue}"`;
+        });
+        csvRows.push(values.join(','));
+    });
+    
+    return csvRows.join('\n');
+}
+
+// 파일 다운로드 실행
+function downloadFile(blob, filename) {
+    // 최신 브라우저의 경우
+    if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+        // IE 지원
+        window.navigator.msSaveOrOpenBlob(blob, filename);
+    } else {
+        // 다른 브라우저
+        const link = document.createElement('a');
+        const url = window.URL.createObjectURL(blob);
+        
+        link.href = url;
+        link.download = filename;
+        link.style.display = 'none';
+        
+        document.body.appendChild(link);
+        link.click();
+        
+        // 정리
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+    }
+}
+
+// 알림 메시지 함수
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    
+    // 알림 스타일
+    notification.style.position = 'fixed';
+    notification.style.top = '20px';
+    notification.style.right = '20px';
+    notification.style.padding = '15px 20px';
+    notification.style.borderRadius = '5px';
+    notification.style.color = 'white';
+    notification.style.fontWeight = 'bold';
+    notification.style.zIndex = '1000';
+    notification.style.minWidth = '250px';
+    notification.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+    
+    // 타입별 색상
+    switch(type) {
+        case 'success':
+            notification.style.backgroundColor = '#2ecc71';
+            break;
+        case 'error':
+            notification.style.backgroundColor = '#e74c3c';
+            break;
+        case 'info':
+            notification.style.backgroundColor = '#3498db';
+            break;
+        default:
+            notification.style.backgroundColor = '#95a5a6';
+    }
+    
+    document.body.appendChild(notification);
+    
+    // 3초 후 자동 제거
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 3000);
+    
+    // 클릭시 즉시 제거
+    notification.addEventListener('click', () => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    });
+}
