@@ -4,13 +4,15 @@ body {
     justify-content: center;
     background-color: #f4f4f9;
     color: #333;
+    margin: 0;
+    padding: 10px;
 }
 .container {
-    width: 80%;
-    max-width: 800px;
-    margin-top: 50px;
+    width: 95%;
+    max-width: 1850px;
+    margin-top: 20px;
     background-color: white;
-    padding: 30px;
+    padding: 25px;
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
@@ -44,6 +46,54 @@ input[type="file"] {
 .btn-primary {
     background-color: #007bff;
 }
+
+/* 진행바 스타일 */
+#progress-container {
+    margin: 20px 0;
+    text-align: center;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 25px;
+    background-color: #f0f0f0;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 10px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #007bff, #0056b3);
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 12px;
+    position: relative;
+}
+
+#progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+#progress-text {
+    font-size: 14px;
+    color: #666;
+    font-weight: bold;
+}
+
 .chart-container {
     margin-top: 40px;
 }
@@ -61,13 +111,17 @@ input[type="file"] {
     width: 100%;
     border-collapse: collapse;
     margin-top: 10px;
-    font-size: 14px;
+    font-size: 13px;
 }
 .data-table th,
 .data-table td {
     border: 1px solid #ddd;
-    padding: 8px 12px;
+    padding: 6px 10px;
     text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
 }
 .data-table th {
     background-color: #f8f9fa;
@@ -83,8 +137,49 @@ input[type="file"] {
     background-color: #f0f0f0;
 }
 #data-table {
-    max-height: 500px;
+    max-height: 750px;
     overflow-y: auto;
     border: 1px solid #ddd;
     border-radius: 5px;
+}
+
+/* 1920x1080 해상도 최적화 */
+@media (min-width: 1800px) {
+    .container {
+        width: 97%;
+        max-width: 1900px;
+        padding: 30px;
+    }
+    
+    .data-table {
+        font-size: 14px;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: 8px 12px;
+        max-width: 200px;
+    }
+    
+    #data-table {
+        max-height: 800px;
+    }
+}
+
+/* 작은 화면 대응 */
+@media (max-width: 1200px) {
+    .container {
+        width: 90%;
+        padding: 20px;
+    }
+    
+    .data-table {
+        font-size: 12px;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: 4px 8px;
+        max-width: 100px;
+    }
 }
