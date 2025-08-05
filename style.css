@@ -113,6 +113,41 @@ input[type="file"] {
     margin-top: 10px;
     font-size: 13px;
 }
+
+.table-container {
+    position: relative;
+    max-height: 750px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.load-more-container {
+    text-align: center;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-top: 1px solid #ddd;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+.btn-secondary:hover {
+    background-color: #5a6268;
+}
+
+.btn-secondary:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
 .data-table th,
 .data-table td {
     border: 1px solid #ddd;
@@ -137,10 +172,7 @@ input[type="file"] {
     background-color: #f0f0f0;
 }
 #data-table {
-    max-height: 750px;
-    overflow-y: auto;
-    border: 1px solid #ddd;
-    border-radius: 5px;
+    margin-top: 20px;
 }
 
 /* 1920x1080 해상도 최적화 */
