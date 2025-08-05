@@ -43,8 +43,12 @@ function handleFileSelect(event) {
 }
 
 function parseCSVData(csvText) {
-    // CSV 파싱 (쉼표 구분, 첫 행 헤더)
-    const rows = csvText.trim().split(/\r?\n/).map(row => row.split(','));
+    // 구분자 자동 감지 (쉼표/탭)
+    let delimiter = ',';
+    if (csvText.indexOf('\t') > -1 && csvText.split('\t').length > csvText.split(',').length) {
+        delimiter = '\t';
+    }
+    const rows = csvText.trim().split(/\r?\n/).map(row => row.split(delimiter));
     if (rows.length < 2) {
         handleError(new Error('CSV 데이터가 비어있거나 잘못되었습니다.'));
         return;
