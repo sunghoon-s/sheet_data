@@ -1,8 +1,11 @@
 // 분석 버튼에 이벤트 리스너 추가
 const analyzeBtn = document.getElementById('analyze-btn');
 const downloadBtn = document.getElementById('download-btn');
-analyzeBtn.addEventListener('click', loadAndAnalyzeData);
+const fileInput = document.getElementById('excel-file-input');
+
+analyzeBtn.addEventListener('click', openFileDialog);
 downloadBtn.addEventListener('click', downloadCSV);
+fileInput.addEventListener('change', handleFileSelect);
 
 // 성능 최적화 변수들
 let currentData = [];
@@ -10,71 +13,78 @@ let displayedRows = 0;
 const BATCH_SIZE = 500; // 한 번에 표시할 행 수
 const RENDER_DELAY = 10; // 렌더링 간 딜레이 (ms)
 
-function loadAndAnalyzeData() {
-    showProgress(0, '데이터 파일을 불러오는 중...');
-    
-    // 버튼 비활성화
-    const analyzeBtn = document.getElementById('analyze-btn');
-    analyzeBtn.disabled = true;
-    analyzeBtn.textContent = '처리 중...';
-    
-    // data_erp.xlsx 파일을 fetch로 읽기
-    fetch('data_erp.xlsx')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('파일을 찾을 수 없습니다.');
-            }
-            showProgress(20, '파일을 읽는 중...');
-            return response.arrayBuffer();
-        })
-        .then(data => {
-            showProgress(40, '엑셀 데이터를 파싱하는 중...');
-            
-            // Web Worker가 지원되는 경우 사용, 아니면 기존 방식
-            if (typeof Worker !== 'undefined') {
-                parseDataWithWorker(data);
-            } else {
-                parseDataFallback(data);
-            }
-        })
-        .catch(error => {
-            hideProgress();
-            resetButton();
-            console.error('파일 로드 오류:', error);
-            alert('data_erp.xlsx 파일을 찾을 수 없습니다. 파일이 같은 폴더에 있는지 확인해주세요.');
-        });
+function openFileDialog() {
+    fileInput.click();
 }
 
-function parseDataFallback(data) {
-    // 기존 방식으로 폴백
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (file) {
+        // 다운로드 버튼 숨기기
+        downloadBtn.style.display = 'none';
+        
+        // 파일 정보 표시
+        showProgress(0, `"${file.name}" 파일을 불러오는 중...`);
+        
+        // 버튼 비활성화
+        analyzeBtn.disabled = true;
+        analyzeBtn.textContent = '처리 중...';
+        
+        // 파일 읽기
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const data = e.target.result;
+            showProgress(20, '파일을 읽는 중...');
+            
+            // 파일 데이터 처리
+            setTimeout(() => {
+                parseExcelFile(data);
+            }, 100);
+        };
+        
+        reader.onerror = function() {
+            handleError(new Error('파일 읽기에 실패했습니다.'));
+        };
+        
+        reader.readAsArrayBuffer(file);
+    }
+}
+
+function parseExcelFile(data) {
+    showProgress(40, '엑셀 데이터를 파싱하는 중...');
+    
+    // 비동기 처리를 위해 setTimeout 사용
     setTimeout(() => {
         try {
+            // SheetJS를 사용해 엑셀 파일 읽기
             const workbook = XLSX.read(data, { type: 'array' });
+
+            // 첫 번째 시트 이름 가져오기
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
+
+            // 시트 데이터를 JSON 형태로 변환
             const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
             showProgress(60, `${jsonData.length}개 행을 처리하는 중...`);
             console.log('원본 데이터:', jsonData);
 
-            processDataAsync(jsonData);
+            // 비동기로 데이터 처리
+            setTimeout(() => {
+                processDataAsync(jsonData);
+            }, 100);
+            
         } catch (error) {
             handleError(error);
         }
-    }, 50);
-}
-
-function parseDataWithWorker(data) {
-    // 실제 환경에서는 별도 워커 파일을 만들어야 하지만, 
-    // 여기서는 간단한 최적화만 적용
-    parseDataFallback(data);
+    }, 100);
 }
 
 function handleError(error) {
     hideProgress();
     resetButton();
     console.error('데이터 처리 오류:', error);
-    alert('데이터 처리 중 오류가 발생했습니다: ' + error.message);
+    alert('파일 처리 중 오류가 발생했습니다: ' + error.message);
 }
 
 async function processDataAsync(jsonData) {
@@ -111,7 +121,7 @@ async function processDataAsync(jsonData) {
         // 가상 스크롤링으로 테이블 표시
         await displayDataWithVirtualScrolling(formattedData);
         
-        showProgress(100, `완료! ${formattedData.length}개의 데이터를 성공적으로 로드했습니다.`);
+        showProgress(100, `완료! ${formattedData.length}개의 데이터를 성공적으로 처리했습니다.`);
         
         // 다운로드 버튼 활성화
         downloadBtn.style.display = 'inline-block';
@@ -148,7 +158,11 @@ function hideProgress() {
 function resetButton() {
     const analyzeBtn = document.getElementById('analyze-btn');
     analyzeBtn.disabled = false;
-    analyzeBtn.textContent = '데이터 보기';
+    analyzeBtn.textContent = '엑셀파일열기';
+    
+    // 파일 input 초기화
+    const fileInput = document.getElementById('excel-file-input');
+    fileInput.value = '';
 }
 
 // 배치 단위로 데이터 포맷팅
@@ -520,7 +534,7 @@ window.getAllSpecs = getAllSpecs;
 // CSV 다운로드 함수
 function downloadCSV() {
     if (!currentData || currentData.length === 0) {
-        alert('다운로드할 데이터가 없습니다. 먼저 "데이터 보기"를 클릭해주세요.');
+        alert('다운로드할 데이터가 없습니다. 먼저 엑셀 파일을 업로드해주세요.');
         return;
     }
 
