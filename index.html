@@ -50,6 +50,71 @@
             font-weight: bold;
             color: #2e7d32;
         }
+        .detail-btn {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .detail-btn:hover {
+            background-color: #1976d2;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 800px;
+            max-height: 80%;
+            overflow-y: auto;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: black;
+        }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2e7d32;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
         .total-sum {
             font-size: 24px;
             font-weight: bold;
@@ -123,6 +188,17 @@
             <div id="data-info" class="data-info">
                 <p><strong>데이터 정보:</strong></p>
                 <div id="info-details"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 공정 상세 모달 -->
+    <div id="processModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 id="modalTitle">공정 상세 분석</h2>
+            <div id="modalContent">
+                <!-- 상세 내용이 여기에 표시됩니다 -->
             </div>
         </div>
     </div>
@@ -273,6 +349,7 @@
                             ${data.total.toLocaleString()} (${percentage}%)
                             <br><small>${data.count}건</small>
                         </div>
+                        <button class="detail-btn" onclick="showProcessDetail('${processName}')">상세보기</button>
                     </div>
                 `;
             });
@@ -301,6 +378,278 @@
                 <p>• 전체 생산수량: ${grandTotal.toLocaleString()}</p>
                 <p>• 평균 생산수량: ${totalValidRows > 0 ? (grandTotal / totalValidRows).toFixed(2) : 0}</p>
             `;
+        }
+        
+        // 공정 상세 분석 함수
+        function showProcessDetail(processName) {
+            if (!excelData || excelData.length === 0) {
+                alert('데이터가 없습니다.');
+                return;
+            }
+            
+            const headers = Object.keys(excelData[0]);
+            
+            // 컬럼 찾기
+            const processColumn = headers.find(header => 
+                header.includes('공정명') || header === '공정명' || header.toLowerCase().includes('process')
+            );
+            const productionColumn = headers.find(header => 
+                header.includes('생산수량') || header === '생산수량' || header.toLowerCase().includes('production') || header.toLowerCase().includes('quantity')
+            );
+            
+            // 해당 공정의 데이터만 필터링
+            const processData = excelData.filter(row => row[processColumn] === processName);
+            
+            if (processData.length === 0) {
+                alert('해당 공정의 데이터를 찾을 수 없습니다.');
+                return;
+            }
+            
+            // 분석 데이터 계산
+            const analysis = analyzeProcessData(processData, processName, productionColumn, headers);
+            
+            // 모달 내용 생성
+            displayProcessModal(processName, analysis);
+        }
+        
+        function analyzeProcessData(processData, processName, productionColumn, headers) {
+            const productions = processData
+                .map(row => parseFloat(row[productionColumn]))
+                .filter(val => !isNaN(val));
+            
+            const totalProduction = productions.reduce((sum, val) => sum + val, 0);
+            const avgProduction = productions.length > 0 ? totalProduction / productions.length : 0;
+            const maxProduction = productions.length > 0 ? Math.max(...productions) : 0;
+            const minProduction = productions.length > 0 ? Math.min(...productions) : 0;
+            
+            // 생산성 지표 계산
+            const productivity = {
+                total: totalProduction,
+                average: avgProduction,
+                max: maxProduction,
+                min: minProduction,
+                count: processData.length,
+                validCount: productions.length,
+                efficiency: productions.length / processData.length * 100, // 유효 데이터 비율
+                variability: productions.length > 1 ? calculateStandardDeviation(productions) : 0
+            };
+            
+            // 시간별/날짜별 분석 (날짜 컬럼이 있는 경우)
+            const dateColumn = headers.find(header => 
+                header.includes('날짜') || header.includes('일자') || header.includes('시간') || 
+                header.toLowerCase().includes('date') || header.toLowerCase().includes('time')
+            );
+            
+            let timeAnalysis = null;
+            if (dateColumn) {
+                timeAnalysis = analyzeTimeData(processData, dateColumn, productionColumn);
+            }
+            
+            // 품질/결함 분석 (관련 컬럼이 있는 경우)
+            const qualityColumns = headers.filter(header => 
+                header.includes('품질') || header.includes('결함') || header.includes('불량') ||
+                header.toLowerCase().includes('quality') || header.toLowerCase().includes('defect')
+            );
+            
+            let qualityAnalysis = null;
+            if (qualityColumns.length > 0) {
+                qualityAnalysis = analyzeQualityData(processData, qualityColumns);
+            }
+            
+            return {
+                productivity,
+                timeAnalysis,
+                qualityAnalysis,
+                rawData: processData.slice(0, 10) // 상위 10개 원본 데이터
+            };
+        }
+        
+        function calculateStandardDeviation(values) {
+            const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+            const squaredDiffs = values.map(val => Math.pow(val - mean, 2));
+            const avgSquaredDiff = squaredDiffs.reduce((sum, val) => sum + val, 0) / values.length;
+            return Math.sqrt(avgSquaredDiff);
+        }
+        
+        function analyzeTimeData(processData, dateColumn, productionColumn) {
+            // 날짜별 생산량 집계
+            const dateGroups = {};
+            
+            processData.forEach(row => {
+                const dateValue = row[dateColumn];
+                const production = parseFloat(row[productionColumn]);
+                
+                if (dateValue && !isNaN(production)) {
+                    const dateKey = formatDate(dateValue);
+                    if (!dateGroups[dateKey]) {
+                        dateGroups[dateKey] = [];
+                    }
+                    dateGroups[dateKey].push(production);
+                }
+            });
+            
+            // 날짜별 통계 계산
+            const dailyStats = Object.entries(dateGroups).map(([date, productions]) => ({
+                date,
+                total: productions.reduce((sum, val) => sum + val, 0),
+                average: productions.reduce((sum, val) => sum + val, 0) / productions.length,
+                count: productions.length
+            })).sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+            return {
+                dailyStats,
+                bestDay: dailyStats.reduce((max, day) => day.total > max.total ? day : max, dailyStats[0] || {}),
+                worstDay: dailyStats.reduce((min, day) => day.total < min.total ? day : min, dailyStats[0] || {})
+            };
+        }
+        
+        function analyzeQualityData(processData, qualityColumns) {
+            const qualityStats = {};
+            
+            qualityColumns.forEach(column => {
+                const values = processData
+                    .map(row => row[column])
+                    .filter(val => val !== null && val !== undefined && val !== '');
+                
+                if (values.length > 0) {
+                    qualityStats[column] = {
+                        total: values.length,
+                        unique: [...new Set(values)],
+                        distribution: getValueDistribution(values)
+                    };
+                }
+            });
+            
+            return qualityStats;
+        }
+        
+        function getValueDistribution(values) {
+            const distribution = {};
+            values.forEach(val => {
+                distribution[val] = (distribution[val] || 0) + 1;
+            });
+            return distribution;
+        }
+        
+        function formatDate(dateValue) {
+            try {
+                const date = new Date(dateValue);
+                return date.toISOString().split('T')[0]; // YYYY-MM-DD 형식
+            } catch {
+                return dateValue.toString();
+            }
+        }
+        
+        function displayProcessModal(processName, analysis) {
+            const modal = document.getElementById('processModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalContent = document.getElementById('modalContent');
+            
+            modalTitle.textContent = `${processName} 공정 상세 분석`;
+            
+            let contentHTML = `
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">${analysis.productivity.total.toLocaleString()}</div>
+                        <div class="stat-label">총 생산량</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${analysis.productivity.average.toFixed(2)}</div>
+                        <div class="stat-label">평균 생산량</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${analysis.productivity.max.toLocaleString()}</div>
+                        <div class="stat-label">최대 생산량</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${analysis.productivity.min.toLocaleString()}</div>
+                        <div class="stat-label">최소 생산량</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${analysis.productivity.efficiency.toFixed(1)}%</div>
+                        <div class="stat-label">데이터 유효율</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${analysis.productivity.variability.toFixed(2)}</div>
+                        <div class="stat-label">표준편차</div>
+                    </div>
+                </div>
+            `;
+            
+            // 시간별 분석 추가
+            if (analysis.timeAnalysis) {
+                contentHTML += `
+                    <h3>📅 시간별 분석</h3>
+                    <div class="stat-grid">
+                        <div class="stat-card">
+                            <div class="stat-value">${analysis.timeAnalysis.bestDay.total?.toLocaleString() || 'N/A'}</div>
+                            <div class="stat-label">최고 일일 생산량<br><small>${analysis.timeAnalysis.bestDay.date || ''}</small></div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${analysis.timeAnalysis.worstDay.total?.toLocaleString() || 'N/A'}</div>
+                            <div class="stat-label">최저 일일 생산량<br><small>${analysis.timeAnalysis.worstDay.date || ''}</small></div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // 품질 분석 추가
+            if (analysis.qualityAnalysis) {
+                contentHTML += `<h3>🔍 품질 분석</h3>`;
+                Object.entries(analysis.qualityAnalysis).forEach(([column, stats]) => {
+                    contentHTML += `
+                        <div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+                            <strong>${column}:</strong> ${stats.unique.length}가지 유형, 총 ${stats.total}건
+                        </div>
+                    `;
+                });
+            }
+            
+            // 생산성 지표 해석
+            contentHTML += `
+                <h3>📊 생산성 지표 해석</h3>
+                <div style="background: #e8f5e8; padding: 15px; border-radius: 6px; margin: 10px 0;">
+                    ${getProductivityInsights(analysis.productivity)}
+                </div>
+            `;
+            
+            modalContent.innerHTML = contentHTML;
+            modal.style.display = 'block';
+        }
+        
+        function getProductivityInsights(productivity) {
+            let insights = [];
+            
+            if (productivity.efficiency >= 95) {
+                insights.push("✅ 데이터 품질이 매우 우수합니다.");
+            } else if (productivity.efficiency >= 80) {
+                insights.push("⚠️ 일부 데이터 누락이 있습니다.");
+            } else {
+                insights.push("❌ 데이터 품질 개선이 필요합니다.");
+            }
+            
+            const cv = productivity.variability / productivity.average; // 변동계수
+            if (cv < 0.1) {
+                insights.push("✅ 생산량이 매우 안정적입니다.");
+            } else if (cv < 0.3) {
+                insights.push("⚠️ 생산량에 약간의 변동이 있습니다.");
+            } else {
+                insights.push("❌ 생산량 변동이 큽니다. 공정 안정성 점검이 필요합니다.");
+            }
+            
+            return insights.join('<br>');
+        }
+        
+        function closeModal() {
+            document.getElementById('processModal').style.display = 'none';
+        }
+        
+        // 모달 외부 클릭 시 닫기
+        window.onclick = function(event) {
+            const modal = document.getElementById('processModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
         }
         
     </script>
