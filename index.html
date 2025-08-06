@@ -228,199 +228,229 @@
                     `${processName} 공정 상세 분석`;
                     
                 let contentHTML = `
-                    <div class="process-detail" style="margin: 40px 0; padding: 40px; background: #f8f9fa; border-radius: 12px; border-left: 6px solid #007bff; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-                        <h2 style="color: #007bff; margin-bottom: 30px; font-size: 28px;">${displayTitle}</h2>
+                    <div class="process-detail" style="margin: 50px 0; padding: 50px; background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%); border-radius: 20px; border: 3px solid #4299e1; box-shadow: 0 20px 60px rgba(66, 153, 225, 0.15); position: relative;">
+                        <div style="position: absolute; top: 0; left: 0; right: 0; height: 8px; background: linear-gradient(90deg, #4299e1 0%, #38b2ac 25%, #68d391 50%, #f6e05e 75%, #fc8181 100%); border-radius: 20px 20px 0 0;"></div>
+                        <h1 style="color: #2d3748; margin-bottom: 40px; font-size: 36px; font-weight: 800; text-align: center; text-shadow: 2px 2px 4px rgba(0,0,0,0.1);">${displayTitle}</h1>
                 `;
                 
-                // 1) 생산 현황 종합
+                // 1) 생산 현황 종합 (6-1)
                 if (analysis.productionSummary) {
                     const summary = analysis.productionSummary;
                     contentHTML += `
-                        <h3 style="color: #333; margin: 30px 0 20px 0; font-size: 22px; border-bottom: 2px solid #007bff; padding-bottom: 10px;">📊 1) 생산 현황 종합</h3>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 40px;">
-                            <div style="background: white; padding: 25px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                <div style="font-size: 32px; font-weight: bold; color: #007bff; margin-bottom: 10px;">${(summary.totalProduction || 0).toLocaleString()}</div>
-                                <div style="font-size: 16px; color: #666;">총 생산수량</div>
-                            </div>
-                            <div style="background: white; padding: 25px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                <div style="font-size: 32px; font-weight: bold; color: #28a745; margin-bottom: 10px;">${summary.equipmentCount || 0}</div>
-                                <div style="font-size: 16px; color: #666;">투입설비 대수</div>
-                            </div>
-                            <div style="background: white; padding: 25px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                <div style="font-size: 32px; font-weight: bold; color: #ffc107; margin-bottom: 10px;">${summary.workerCount || 0}</div>
-                                <div style="font-size: 16px; color: #666;">투입인원 수</div>
-                            </div>
-                            <div style="background: white; padding: 25px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                <div style="font-size: 32px; font-weight: bold; color: #17a2b8; margin-bottom: 10px;">${(summary.totalWorkTime || 0).toLocaleString()}</div>
-                                <div style="font-size: 16px; color: #666;">총 작업시간</div>
-                            </div>
-                            <div style="background: white; padding: 25px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                <div style="font-size: 32px; font-weight: bold; color: #6f42c1; margin-bottom: 10px;">${summary.avgUPH || 'N/A'}</div>
-                                <div style="font-size: 16px; color: #666;">평균 UPH</div>
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; border-radius: 16px; margin-bottom: 50px; box-shadow: 0 15px 35px rgba(102, 126, 234, 0.2);">
+                            <h2 style="color: white; margin-bottom: 30px; font-size: 28px; font-weight: 700; text-align: center; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">📊 1) 생산 현황 종합</h2>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 25px;">
+                                <div style="background: rgba(255,255,255,0.95); padding: 30px; border-radius: 12px; text-align: center; box-shadow: 0 8px 25px rgba(0,0,0,0.1); backdrop-filter: blur(10px);">
+                                    <div style="font-size: 42px; font-weight: 900; color: #4299e1; margin-bottom: 12px; text-shadow: 1px 1px 3px rgba(0,0,0,0.1);">${(summary.totalProduction || 0).toLocaleString()}</div>
+                                    <div style="font-size: 18px; color: #4a5568; font-weight: 600;">총 생산수량</div>
+                                </div>
+                                <div style="background: rgba(255,255,255,0.95); padding: 30px; border-radius: 12px; text-align: center; box-shadow: 0 8px 25px rgba(0,0,0,0.1); backdrop-filter: blur(10px);">
+                                    <div style="font-size: 42px; font-weight: 900; color: #38b2ac; margin-bottom: 12px; text-shadow: 1px 1px 3px rgba(0,0,0,0.1);">${summary.equipmentCount || 0}</div>
+                                    <div style="font-size: 18px; color: #4a5568; font-weight: 600;">투입설비 대수</div>
+                                </div>
+                                <div style="background: rgba(255,255,255,0.95); padding: 30px; border-radius: 12px; text-align: center; box-shadow: 0 8px 25px rgba(0,0,0,0.1); backdrop-filter: blur(10px);">
+                                    <div style="font-size: 42px; font-weight: 900; color: #68d391; margin-bottom: 12px; text-shadow: 1px 1px 3px rgba(0,0,0,0.1);">${summary.workerCount || 0}</div>
+                                    <div style="font-size: 18px; color: #4a5568; font-weight: 600;">투입인원 수</div>
+                                </div>
+                                <div style="background: rgba(255,255,255,0.95); padding: 30px; border-radius: 12px; text-align: center; box-shadow: 0 8px 25px rgba(0,0,0,0.1); backdrop-filter: blur(10px);">
+                                    <div style="font-size: 42px; font-weight: 900; color: #f6e05e; margin-bottom: 12px; text-shadow: 1px 1px 3px rgba(0,0,0,0.1);">${(summary.totalWorkTime || 0).toLocaleString()}</div>
+                                    <div style="font-size: 18px; color: #4a5568; font-weight: 600;">총 작업시간</div>
+                                </div>
+                                <div style="background: rgba(255,255,255,0.95); padding: 30px; border-radius: 12px; text-align: center; box-shadow: 0 8px 25px rgba(0,0,0,0.1); backdrop-filter: blur(10px);">
+                                    <div style="font-size: 42px; font-weight: 900; color: #fc8181; margin-bottom: 12px; text-shadow: 1px 1px 3px rgba(0,0,0,0.1);">${summary.avgUPH || 'N/A'}</div>
+                                    <div style="font-size: 18px; color: #4a5568; font-weight: 600;">평균 UPH</div>
+                                </div>
                             </div>
                         </div>
                     `;
                 }
                 
-                // 2) 설비별 분석
+                // 2) 전체 '설비' 별 분석 (생산수량/평균효율/불량율/필요인원수)
                 if (analysis.equipmentAnalysis && Object.keys(analysis.equipmentAnalysis).length > 0) {
                     contentHTML += `
-                        <h3 style="color: #333; margin: 30px 0 20px 0; font-size: 22px; border-bottom: 2px solid #28a745; padding-bottom: 10px;">🔧 2) 설비별 생산성 분석</h3>
-                        <div style="overflow-x: auto; background: white; border-radius: 8px; margin-bottom: 40px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                            <table style="width: 100%; border-collapse: collapse;">
-                                <thead>
-                                    <tr style="background: #28a745; color: white;">
-                                        <th style="padding: 15px; border: 1px solid #ddd; font-size: 16px; font-weight: bold;">설비명</th>
-                                        <th style="padding: 15px; border: 1px solid #ddd; font-size: 16px; font-weight: bold;">생산성</th>
-                                        <th style="padding: 15px; border: 1px solid #ddd; font-size: 16px; font-weight: bold;">가동율(%)</th>
-                                        <th style="padding: 15px; border: 1px solid #ddd; font-size: 16px; font-weight: bold;">불량율(%)</th>
-                                        <th style="padding: 15px; border: 1px solid #ddd; font-size: 16px; font-weight: bold;">소요인원</th>
-                                    </tr>
-                                </thead>
-                                <tbody>`;
+                        <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 40px; border-radius: 16px; margin-bottom: 50px; box-shadow: 0 15px 35px rgba(240, 147, 251, 0.25);">
+                            <h2 style="color: white; margin-bottom: 30px; font-size: 28px; font-weight: 700; text-align: center; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">🔧 2) 전체 '설비' 별 생산성 분석</h2>
+                            <div style="background: rgba(255,255,255,0.95); border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); backdrop-filter: blur(10px);">
+                                <div style="overflow-x: auto;">
+                                    <table style="width: 100%; border-collapse: collapse; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                                        <thead>
+                                            <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                                <th style="padding: 20px; color: white; font-size: 18px; font-weight: 700; text-align: center; border: none;">설비명</th>
+                                                <th style="padding: 20px; color: white; font-size: 18px; font-weight: 700; text-align: center; border: none;">생산수량</th>
+                                                <th style="padding: 20px; color: white; font-size: 18px; font-weight: 700; text-align: center; border: none;">평균효율(%)</th>
+                                                <th style="padding: 20px; color: white; font-size: 18px; font-weight: 700; text-align: center; border: none;">불량율(%)</th>
+                                                <th style="padding: 20px; color: white; font-size: 18px; font-weight: 700; text-align: center; border: none;">필요인원수</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>`;
                     
-                    Object.entries(analysis.equipmentAnalysis).forEach(([equipment, stats]) => {
+                    Object.entries(analysis.equipmentAnalysis).forEach(([equipment, stats], index) => {
+                        const bgColor = index % 2 === 0 ? 'rgba(247, 250, 252, 0.8)' : 'rgba(237, 242, 247, 0.8)';
                         contentHTML += `
-                            <tr style="border-bottom: 1px solid #eee;">
-                                <td style="padding: 15px; border: 1px solid #ddd; font-size: 15px; font-weight: 500;">${equipment}</td>
-                                <td style="padding: 15px; border: 1px solid #ddd; font-size: 15px; text-align: center;">${stats.productivity || 'N/A'}</td>
-                                <td style="padding: 15px; border: 1px solid #ddd; font-size: 15px; text-align: center;">${stats.operationRate || 0}%</td>
-                                <td style="padding: 15px; border: 1px solid #ddd; font-size: 15px; text-align: center;">${stats.defectRate || 0}%</td>
-                                <td style="padding: 15px; border: 1px solid #ddd; font-size: 15px; text-align: center;">${stats.requiredWorkers || 0}명</td>
+                            <tr style="background: ${bgColor}; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(66, 153, 225, 0.1)'" onmouseout="this.style.background='${bgColor}'">
+                                <td style="padding: 18px; font-size: 16px; font-weight: 600; color: #2d3748; border: none;">${equipment}</td>
+                                <td style="padding: 18px; font-size: 16px; font-weight: 700; color: #4299e1; text-align: center; border: none;">${(stats.totalProduction || 0).toLocaleString()}</td>
+                                <td style="padding: 18px; font-size: 16px; font-weight: 600; color: #38b2ac; text-align: center; border: none;">${stats.operationRate || 0}%</td>
+                                <td style="padding: 18px; font-size: 16px; font-weight: 600; color: #fc8181; text-align: center; border: none;">${stats.defectRate || 0}%</td>
+                                <td style="padding: 18px; font-size: 16px; font-weight: 600; color: #68d391; text-align: center; border: none;">${stats.requiredWorkers || 0.5}명/대</td>
                             </tr>`;
                     });
-                    contentHTML += `</tbody></table></div>`;
+                    contentHTML += `</tbody></table></div></div></div>`;
                 }
                 
-                // 3) 작업자별 분석
+                // 3) 전체 '작업자' 별 분석 (생산수량/평균 UPH/불량율/인당 설비 운영 수)
                 if (analysis.workerAnalysis && Object.keys(analysis.workerAnalysis).length > 0) {
                     contentHTML += `
-                        <h3 style="color: #333; margin: 30px 0 20px 0; font-size: 22px; border-bottom: 2px solid #ffc107; padding-bottom: 10px;">👨‍🔧 3) 작업자별 생산성 분석</h3>
-                        <div style="overflow-x: auto; background: white; border-radius: 8px; margin-bottom: 40px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                            <table style="width: 100%; border-collapse: collapse;">
-                                <thead>
-                                    <tr style="background: #ffc107; color: #212529;">
-                                        <th style="padding: 15px; border: 1px solid #ddd; font-size: 16px; font-weight: bold;">작업자</th>
-                                        <th style="padding: 15px; border: 1px solid #ddd; font-size: 16px; font-weight: bold;">생산성</th>
-                                        <th style="padding: 15px; border: 1px solid #ddd; font-size: 16px; font-weight: bold;">불량율(%)</th>
-                                        <th style="padding: 15px; border: 1px solid #ddd; font-size: 16px; font-weight: bold;">설비 운영 수</th>
-                                    </tr>
-                                </thead>
-                                <tbody>`;
+                        <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 40px; border-radius: 16px; margin-bottom: 50px; box-shadow: 0 15px 35px rgba(79, 172, 254, 0.25);">
+                            <h2 style="color: white; margin-bottom: 30px; font-size: 28px; font-weight: 700; text-align: center; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">👨‍🔧 3) 전체 '작업자' 별 생산성 분석</h2>
+                            <div style="background: rgba(255,255,255,0.95); border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); backdrop-filter: blur(10px);">
+                                <div style="overflow-x: auto;">
+                                    <table style="width: 100%; border-collapse: collapse; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                                        <thead>
+                                            <tr style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                                                <th style="padding: 20px; color: white; font-size: 18px; font-weight: 700; text-align: center; border: none;">작업자</th>
+                                                <th style="padding: 20px; color: white; font-size: 18px; font-weight: 700; text-align: center; border: none;">생산수량</th>
+                                                <th style="padding: 20px; color: white; font-size: 18px; font-weight: 700; text-align: center; border: none;">평균 UPH</th>
+                                                <th style="padding: 20px; color: white; font-size: 18px; font-weight: 700; text-align: center; border: none;">불량율(%)</th>
+                                                <th style="padding: 20px; color: white; font-size: 18px; font-weight: 700; text-align: center; border: none;">인당 설비 운영 수</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>`;
                     
-                    Object.entries(analysis.workerAnalysis).forEach(([worker, stats]) => {
+                    Object.entries(analysis.workerAnalysis).forEach(([worker, stats], index) => {
+                        const bgColor = index % 2 === 0 ? 'rgba(247, 250, 252, 0.8)' : 'rgba(237, 242, 247, 0.8)';
                         contentHTML += `
-                            <tr style="border-bottom: 1px solid #eee;">
-                                <td style="padding: 15px; border: 1px solid #ddd; font-size: 15px; font-weight: 500;">${worker}</td>
-                                <td style="padding: 15px; border: 1px solid #ddd; font-size: 15px; text-align: center;">${stats.productivity || 'N/A'}</td>
-                                <td style="padding: 15px; border: 1px solid #ddd; font-size: 15px; text-align: center;">${stats.defectRate || 0}%</td>
-                                <td style="padding: 15px; border: 1px solid #ddd; font-size: 15px; text-align: center;">${stats.equipmentCount || 0}대</td>
+                            <tr style="background: ${bgColor}; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(79, 172, 254, 0.1)'" onmouseout="this.style.background='${bgColor}'">
+                                <td style="padding: 18px; font-size: 16px; font-weight: 600; color: #2d3748; border: none;">${worker}</td>
+                                <td style="padding: 18px; font-size: 16px; font-weight: 700; color: #4299e1; text-align: center; border: none;">${(stats.totalProduction || 0).toLocaleString()}</td>
+                                <td style="padding: 18px; font-size: 16px; font-weight: 600; color: #38b2ac; text-align: center; border: none;">${stats.avgUPH || 'N/A'}</td>
+                                <td style="padding: 18px; font-size: 16px; font-weight: 600; color: #fc8181; text-align: center; border: none;">${stats.defectRate || 0}%</td>
+                                <td style="padding: 18px; font-size: 16px; font-weight: 600; color: #68d391; text-align: center; border: none;">${stats.equipmentCount || 0}대</td>
                             </tr>`;
                     });
-                    contentHTML += `</tbody></table></div>`;
+                    contentHTML += `</tbody></table></div></div></div>`;
                 }
                 
-                // 4) 시간대별 분석
+                // 4) 시간대별 분석 (생산수량/UPH/불량율)
                 if (analysis.hourlyAnalysis && Object.keys(analysis.hourlyAnalysis).length > 0) {
                     contentHTML += `
-                        <h3 style="color: #333; margin: 30px 0 20px 0; font-size: 22px; border-bottom: 2px solid #17a2b8; padding-bottom: 10px;">🕐 4) 24시간 시간대별 분석</h3>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 40px;">`;
+                        <div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); padding: 40px; border-radius: 16px; margin-bottom: 50px; box-shadow: 0 15px 35px rgba(250, 112, 154, 0.25);">
+                            <h2 style="color: white; margin-bottom: 30px; font-size: 28px; font-weight: 700; text-align: center; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">🕐 4) 시간대별 생산성 분석</h2>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px;">`;
                     
                     Object.entries(analysis.hourlyAnalysis).sort(([a], [b]) => parseInt(a) - parseInt(b)).forEach(([hour, stats]) => {
                         contentHTML += `
-                            <div style="background: white; padding: 25px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 2px solid #17a2b8;">
-                                <div style="font-size: 32px; font-weight: bold; color: #17a2b8; margin-bottom: 15px;">${hour}시</div>
-                                <div style="font-size: 16px; color: #666; line-height: 2;">
-                                    생산성: <strong>${stats.productivity || 'N/A'}</strong><br>
-                                    UPH: <strong>${stats.uph || 'N/A'}</strong><br>
-                                    불량율: <strong>${stats.defectRate || 0}%</strong>
+                            <div style="background: rgba(255,255,255,0.95); padding: 30px; border-radius: 16px; text-align: center; box-shadow: 0 8px 25px rgba(0,0,0,0.15); backdrop-filter: blur(10px); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <div style="font-size: 48px; font-weight: 900; color: #fa709a; margin-bottom: 15px; text-shadow: 1px 1px 3px rgba(0,0,0,0.1);">${hour}시</div>
+                                <div style="font-size: 16px; color: #4a5568; line-height: 2.2; font-weight: 600;">
+                                    <div style="margin-bottom: 8px;">생산수량: <span style="color: #4299e1; font-weight: 700; font-size: 18px;">${(stats.totalProduction || 0).toLocaleString()}</span></div>
+                                    <div style="margin-bottom: 8px;">UPH: <span style="color: #38b2ac; font-weight: 700; font-size: 18px;">${stats.uph || 'N/A'}</span></div>
+                                    <div>불량율: <span style="color: #fc8181; font-weight: 700; font-size: 18px;">${stats.defectRate || 0}%</span></div>
                                 </div>
                             </div>
                         `;
                     });
-                    contentHTML += `</div>`;
+                    contentHTML += `</div></div>`;
                 }
                 
-                // 5) 교대별 분석
+                // 5) 근무시간별 분석: 오전(주간)조/오후(야간)조/3교대 야간조
                 if (analysis.shiftAnalysis && Object.keys(analysis.shiftAnalysis).length > 0) {
                     contentHTML += `
-                        <h3 style="color: #333; margin: 30px 0 20px 0; font-size: 22px; border-bottom: 2px solid #6f42c1; padding-bottom: 10px;">⏰ 5) 교대별 생산성 분석</h3>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; margin-bottom: 40px;">`;
+                        <div style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); padding: 40px; border-radius: 16px; margin-bottom: 50px; box-shadow: 0 15px 35px rgba(168, 237, 234, 0.25);">
+                            <h2 style="color: #2d3748; margin-bottom: 30px; font-size: 28px; font-weight: 700; text-align: center; text-shadow: 1px 1px 3px rgba(255,255,255,0.8);">⏰ 5) 3개조별 생산성 분석</h2>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 30px;">`;
                     
                     Object.entries(analysis.shiftAnalysis).forEach(([shift, stats]) => {
+                        let shiftIcon = '🌅';
+                        let shiftColor = '#4299e1';
+                        if (shift.includes('야간') || shift.includes('밤')) {
+                            shiftIcon = '🌙';
+                            shiftColor = '#805ad5';
+                        } else if (shift.includes('오후') || shift.includes('저녁')) {
+                            shiftIcon = '🌆';
+                            shiftColor = '#f6ad55';
+                        }
+                        
                         contentHTML += `
-                            <div style="background: white; padding: 30px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 2px solid #6f42c1;">
-                                <div style="font-size: 36px; font-weight: bold; color: #6f42c1; margin-bottom: 15px;">${(stats.totalProduction || 0).toLocaleString()}</div>
-                                <div style="font-size: 20px; color: #333; margin-bottom: 10px;">${shift}</div>
-                                <div style="font-size: 16px; color: #666;">생산성: <strong>${stats.productivity || 'N/A'}</strong></div>
+                            <div style="background: rgba(255,255,255,0.95); padding: 35px; border-radius: 16px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.15); backdrop-filter: blur(10px); border: 3px solid ${shiftColor}; transition: transform 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                                <div style="font-size: 48px; margin-bottom: 15px;">${shiftIcon}</div>
+                                <div style="font-size: 46px; font-weight: 900; color: ${shiftColor}; margin-bottom: 15px; text-shadow: 1px 1px 3px rgba(0,0,0,0.1);">${(stats.totalProduction || 0).toLocaleString()}</div>
+                                <div style="font-size: 22px; color: #2d3748; margin-bottom: 15px; font-weight: 700;">${shift}</div>
+                                <div style="font-size: 18px; color: #4a5568; font-weight: 600;">생산성: <span style="color: ${shiftColor}; font-weight: 700;">${stats.productivity || 'N/A'}</span></div>
                             </div>
                         `;
                     });
-                    contentHTML += `</div>`;
+                    contentHTML += `</div></div>`;
                 }
                 
-                // 6) 규격별 분석
+                // 6) '규격' 별 총 생산 실적 및 적용 설비 (6-1)
                 if (analysis.specAnalysis && Object.keys(analysis.specAnalysis).length > 0) {
                     contentHTML += `
-                        <h3 style="color: #333; margin: 30px 0 20px 0; font-size: 22px; border-bottom: 2px solid #dc3545; padding-bottom: 10px;">📏 6) 규격별 생산 실적 분석</h3>
-                        <div style="overflow-x: auto; background: white; border-radius: 8px; margin-bottom: 40px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                            <table style="width: 100%; border-collapse: collapse;">
-                                <thead>
-                                    <tr style="background: #dc3545; color: white;">
-                                        <th style="padding: 15px; border: 1px solid #ddd; font-size: 16px; font-weight: bold;">규격</th>
-                                        <th style="padding: 15px; border: 1px solid #ddd; font-size: 16px; font-weight: bold;">총 생산량</th>
-                                        <th style="padding: 15px; border: 1px solid #ddd; font-size: 16px; font-weight: bold;">생산성</th>
-                                        <th style="padding: 15px; border: 1px solid #ddd; font-size: 16px; font-weight: bold;">평균 C/T</th>
-                                        <th style="padding: 15px; border: 1px solid #ddd; font-size: 16px; font-weight: bold;">효율(%)</th>
-                                        <th style="padding: 15px; border: 1px solid #ddd; font-size: 16px; font-weight: bold;">불량율(%)</th>
-                                        <th style="padding: 15px; border: 1px solid #ddd; font-size: 16px; font-weight: bold;">적용 설비</th>
-                                    </tr>
-                                </thead>
-                                <tbody>`;
+                        <div style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); padding: 40px; border-radius: 16px; margin-bottom: 50px; box-shadow: 0 15px 35px rgba(255, 154, 158, 0.25);">
+                            <h2 style="color: white; margin-bottom: 30px; font-size: 28px; font-weight: 700; text-align: center; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">📏 6) '규격' 별 총 생산 실적 및 적용 설비</h2>
+                            <div style="background: rgba(255,255,255,0.95); border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); backdrop-filter: blur(10px);">
+                                <div style="overflow-x: auto;">
+                                    <table style="width: 100%; border-collapse: collapse; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                                        <thead>
+                                            <tr style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);">
+                                                <th style="padding: 20px; color: white; font-size: 18px; font-weight: 700; text-align: center; border: none;">규격</th>
+                                                <th style="padding: 20px; color: white; font-size: 18px; font-weight: 700; text-align: center; border: none;">생산수량</th>
+                                                <th style="padding: 20px; color: white; font-size: 18px; font-weight: 700; text-align: center; border: none;">평균 UPH</th>
+                                                <th style="padding: 20px; color: white; font-size: 18px; font-weight: 700; text-align: center; border: none;">적용 C/T</th>
+                                                <th style="padding: 20px; color: white; font-size: 18px; font-weight: 700; text-align: center; border: none;">효율2(%)</th>
+                                                <th style="padding: 20px; color: white; font-size: 18px; font-weight: 700; text-align: center; border: none;">불량율(%)</th>
+                                                <th style="padding: 20px; color: white; font-size: 18px; font-weight: 700; text-align: center; border: none;">적용설비</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>`;
                     
-                    Object.entries(analysis.specAnalysis).forEach(([spec, stats]) => {
+                    Object.entries(analysis.specAnalysis).forEach(([spec, stats], index) => {
+                        const bgColor = index % 2 === 0 ? 'rgba(247, 250, 252, 0.8)' : 'rgba(237, 242, 247, 0.8)';
                         contentHTML += `
-                            <tr style="border-bottom: 1px solid #eee;">
-                                <td style="padding: 15px; border: 1px solid #ddd; font-size: 15px; font-weight: 500;">${spec}</td>
-                                <td style="padding: 15px; border: 1px solid #ddd; font-size: 15px; text-align: center;">${(stats.totalProduction || 0).toLocaleString()}</td>
-                                <td style="padding: 15px; border: 1px solid #ddd; font-size: 15px; text-align: center;">${stats.productivity || 'N/A'}</td>
-                                <td style="padding: 15px; border: 1px solid #ddd; font-size: 15px; text-align: center;">${stats.avgCT || 'N/A'}초</td>
-                                <td style="padding: 15px; border: 1px solid #ddd; font-size: 15px; text-align: center;">${stats.efficiency || 0}%</td>
-                                <td style="padding: 15px; border: 1px solid #ddd; font-size: 15px; text-align: center;">${stats.defectRate || 0}%</td>
-                                <td style="padding: 15px; border: 1px solid #ddd; font-size: 15px;">${(stats.equipmentList || []).join(', ')}</td>
+                            <tr style="background: ${bgColor}; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(255, 154, 158, 0.1)'" onmouseout="this.style.background='${bgColor}'">
+                                <td style="padding: 18px; font-size: 16px; font-weight: 600; color: #2d3748; border: none;">${spec}</td>
+                                <td style="padding: 18px; font-size: 16px; font-weight: 700; color: #4299e1; text-align: center; border: none;">${(stats.totalProduction || 0).toLocaleString()}</td>
+                                <td style="padding: 18px; font-size: 16px; font-weight: 600; color: #38b2ac; text-align: center; border: none;">${stats.avgUPH || 'N/A'}</td>
+                                <td style="padding: 18px; font-size: 16px; font-weight: 600; color: #f6ad55; text-align: center; border: none;">${stats.avgCT || 'N/A'}초</td>
+                                <td style="padding: 18px; font-size: 16px; font-weight: 600; color: #68d391; text-align: center; border: none;">${stats.efficiency || 0}%</td>
+                                <td style="padding: 18px; font-size: 16px; font-weight: 600; color: #fc8181; text-align: center; border: none;">${stats.defectRate || 0}%</td>
+                                <td style="padding: 18px; font-size: 16px; font-weight: 600; color: #805ad5; border: none;">${(stats.equipmentList || []).join(', ')}</td>
                             </tr>`;
                     });
-                    contentHTML += `</tbody></table></div>`;
+                    contentHTML += `</tbody></table></div></div></div>`;
                 }
                 
-                // 7) 작업자별 설비 운영 실적
+                // 7) '작업자'별 '설비' 운영 실적 (7-1)
                 if (analysis.workerEquipmentAnalysis && Object.keys(analysis.workerEquipmentAnalysis).length > 0) {
                     contentHTML += `
-                        <h3 style="color: #333; margin: 30px 0 20px 0; font-size: 22px; border-bottom: 2px solid #fd7e14; padding-bottom: 10px;">🔧👨‍🔧 7) 작업자별 설비 운영 실적</h3>
-                        <div style="overflow-x: auto; background: white; border-radius: 8px; margin-bottom: 40px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                            <table style="width: 100%; border-collapse: collapse;">
-                                <thead>
-                                    <tr style="background: #fd7e14; color: white;">
-                                        <th style="padding: 15px; border: 1px solid #ddd; font-size: 16px; font-weight: bold;">작업자</th>
-                                        <th style="padding: 15px; border: 1px solid #ddd; font-size: 16px; font-weight: bold;">운영 설비 수</th>
-                                        <th style="padding: 15px; border: 1px solid #ddd; font-size: 16px; font-weight: bold;">설비별 생산 실적</th>
-                                    </tr>
-                                </thead>
-                                <tbody>`;
+                        <div style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); padding: 40px; border-radius: 16px; margin-bottom: 50px; box-shadow: 0 15px 35px rgba(252, 182, 159, 0.25);">
+                            <h2 style="color: #2d3748; margin-bottom: 30px; font-size: 28px; font-weight: 700; text-align: center; text-shadow: 1px 1px 3px rgba(255,255,255,0.8);">🔧👨‍🔧 7) '작업자'별 '설비' 운영 실적</h2>
+                            <div style="background: rgba(255,255,255,0.95); border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); backdrop-filter: blur(10px);">
+                                <div style="overflow-x: auto;">
+                                    <table style="width: 100%; border-collapse: collapse; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                                        <thead>
+                                            <tr style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);">
+                                                <th style="padding: 20px; color: #2d3748; font-size: 18px; font-weight: 700; text-align: center; border: none; text-shadow: 1px 1px 2px rgba(255,255,255,0.8);">작업자</th>
+                                                <th style="padding: 20px; color: #2d3748; font-size: 18px; font-weight: 700; text-align: center; border: none; text-shadow: 1px 1px 2px rgba(255,255,255,0.8);">설비운영 대수</th>
+                                                <th style="padding: 20px; color: #2d3748; font-size: 18px; font-weight: 700; text-align: center; border: none; text-shadow: 1px 1px 2px rgba(255,255,255,0.8);">운영설비별 생산실적</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>`;
                     
-                    Object.entries(analysis.workerEquipmentAnalysis).forEach(([worker, stats]) => {
+                    Object.entries(analysis.workerEquipmentAnalysis).forEach(([worker, stats], index) => {
+                        const bgColor = index % 2 === 0 ? 'rgba(247, 250, 252, 0.8)' : 'rgba(237, 242, 247, 0.8)';
                         const equipmentDetails = Object.entries(stats.equipmentDetails || {})
-                            .map(([eq, data]) => `${eq}(${(data.totalProduction || 0).toLocaleString()})`)
-                            .join(', ');
+                            .map(([eq, data]) => `<span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 12px; border-radius: 20px; font-weight: 600; margin: 2px; display: inline-block; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);">${eq}(${(data.totalProduction || 0).toLocaleString()})</span>`)
+                            .join(' ');
                         
                         contentHTML += `
-                            <tr style="border-bottom: 1px solid #eee;">
-                                <td style="padding: 15px; border: 1px solid #ddd; font-size: 15px; font-weight: 500;">${worker}</td>
-                                <td style="padding: 15px; border: 1px solid #ddd; font-size: 15px; text-align: center;">${stats.equipmentCount || 0}대</td>
-                                <td style="padding: 15px; border: 1px solid #ddd; font-size: 15px;">${equipmentDetails || 'N/A'}</td>
+                            <tr style="background: ${bgColor}; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(252, 182, 159, 0.1)'" onmouseout="this.style.background='${bgColor}'">
+                                <td style="padding: 18px; font-size: 16px; font-weight: 600; color: #2d3748; border: none;">${worker}</td>
+                                <td style="padding: 18px; font-size: 16px; font-weight: 700; color: #4299e1; text-align: center; border: none;">${stats.equipmentCount || 0}대</td>
+                                <td style="padding: 18px; font-size: 14px; border: none; line-height: 1.8;">${equipmentDetails || '<span style="color: #718096; font-style: italic;">N/A</span>'}</td>
                             </tr>`;
                     });
-                    contentHTML += `</tbody></table></div>`;
+                    contentHTML += `</tbody></table></div></div></div>`;
                 }
                 
                 // 종합 인사이트만 간단히 표시
