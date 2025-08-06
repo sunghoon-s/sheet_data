@@ -71,11 +71,26 @@
         .btn:hover {
             background-color: #45a049;
         }
+        .btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #loading-indicator {
+            background-color: #e3f2fd;
+            border: 1px solid #2196F3;
+            padding: 15px;
+            border-radius: 5px;
+            color: #1976d2;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>엑셀 데이터 분석 - 생산수량 합계</h1>
+        
+        <div id="loading-indicator" style="display: none; text-align: center; margin: 20px;">
+            <p>📊 엑셀 파일을 로딩 중입니다...</p>
+        </div>
         
         <button id="loadBtn" class="btn">data_erp.xlsx 파일 로드</button>
         
@@ -103,10 +118,18 @@
         document.getElementById('loadBtn').addEventListener('click', loadExcelFile);
         
         async function loadExcelFile() {
+            const loadBtn = document.getElementById('loadBtn');
+            const loadingIndicator = document.getElementById('loading-indicator');
+            
             try {
+                // 로딩 상태 표시
+                loadBtn.disabled = true;
+                loadBtn.textContent = '로딩 중...';
+                loadingIndicator.style.display = 'block';
+                
                 const response = await fetch('data_erp.xlsx');
                 if (!response.ok) {
-                    throw new Error('파일을 찾을 수 없습니다.');
+                    throw new Error(`파일을 찾을 수 없습니다. (상태: ${response.status})`);
                 }
                 
                 const arrayBuffer = await response.arrayBuffer();
@@ -120,13 +143,19 @@
                 excelData = XLSX.utils.sheet_to_json(worksheet);
                 
                 console.log('로드된 데이터:', excelData);
+                console.log('시트 이름들:', workbook.SheetNames);
                 
                 // 데이터 분석 및 표시
                 analyzeData();
                 
             } catch (error) {
                 alert('파일 로드 중 오류가 발생했습니다: ' + error.message);
-                console.error(error);
+                console.error('상세 오류 정보:', error);
+            } finally {
+                // 로딩 상태 해제
+                loadBtn.disabled = false;
+                loadBtn.textContent = 'data_erp.xlsx 파일 로드';
+                loadingIndicator.style.display = 'none';
             }
         }
         
@@ -136,22 +165,27 @@
                 return;
             }
             
-            // 생산수량 컬럼 찾기
+            // 생산수량 컬럼 찾기 (더 유연하게)
             const headers = Object.keys(excelData[0]);
             console.log('헤더:', headers);
             
             const productionColumn = headers.find(header => 
-                header.includes('생산수량') || header === '생산수량'
+                header.includes('생산수량') || 
+                header === '생산수량' ||
+                header.toLowerCase().includes('production') ||
+                header.toLowerCase().includes('quantity')
             );
             
             if (!productionColumn) {
-                alert('생산수량 컬럼을 찾을 수 없습니다.');
+                alert(`생산수량 컬럼을 찾을 수 없습니다.\n사용 가능한 컬럼: ${headers.join(', ')}`);
+                console.log('사용 가능한 컬럼들:', headers);
                 return;
             }
             
             // 생산수량 총 합계 계산
             let totalSum = 0;
             let validRows = 0;
+            let invalidRows = 0;
             
             excelData.forEach((row, index) => {
                 const value = row[productionColumn];
@@ -160,15 +194,20 @@
                     if (!isNaN(numValue)) {
                         totalSum += numValue;
                         validRows++;
+                    } else {
+                        invalidRows++;
+                        console.warn(`행 ${index + 2}: 유효하지 않은 숫자 값 "${value}"`);
                     }
+                } else {
+                    invalidRows++;
                 }
             });
             
             // 결과 표시
-            displayResults(totalSum, validRows, productionColumn);
+            displayResults(totalSum, validRows, invalidRows, productionColumn);
         }
         
-        function displayResults(totalSum, validRows, columnName) {
+        function displayResults(totalSum, validRows, invalidRows, columnName) {
             // 결과 컨테이너 표시
             document.getElementById('result-container').style.display = 'block';
             
@@ -181,8 +220,11 @@
             infoDetails.innerHTML = `
                 <p>• 전체 행 수: ${excelData.length.toLocaleString()}개</p>
                 <p>• 유효한 생산수량 데이터: ${validRows.toLocaleString()}개</p>
+                <p>• 무효한 데이터: ${invalidRows.toLocaleString()}개</p>
                 <p>• 생산수량 컬럼명: "${columnName}"</p>
                 <p>• 평균 생산수량: ${validRows > 0 ? (totalSum / validRows).toFixed(2) : 0}</p>
+                <p>• 최대값: ${validRows > 0 ? getMaxValue(columnName).toLocaleString() : 0}</p>
+                <p>• 최소값: ${validRows > 0 ? getMinValue(columnName).toLocaleString() : 0}</p>
             `;
             
             // 데이터 테이블 표시 (상위 10개 행)
@@ -215,6 +257,22 @@
             
             tableHTML += '</tbody>';
             table.innerHTML = tableHTML;
+        }
+        
+        // 최대값 구하기
+        function getMaxValue(columnName) {
+            const values = excelData
+                .map(row => parseFloat(row[columnName]))
+                .filter(val => !isNaN(val));
+            return values.length > 0 ? Math.max(...values) : 0;
+        }
+        
+        // 최소값 구하기
+        function getMinValue(columnName) {
+            const values = excelData
+                .map(row => parseFloat(row[columnName]))
+                .filter(val => !isNaN(val));
+            return values.length > 0 ? Math.min(...values) : 0;
         }
     </script>
 </body>
