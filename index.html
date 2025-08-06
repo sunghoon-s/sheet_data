@@ -502,31 +502,61 @@
                     const workbook = XLSX.read(data, { type: 'array' });
                     const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                     
+                    // 시트 범위 확인
+                    const range = XLSX.utils.decode_range(firstSheet['!ref'] || 'A1');
+                    console.log('📊 시트 범위:', `${range.s.r + 1}행 ~ ${range.e.r + 1}행, ${range.s.c + 1}열 ~ ${range.e.c + 1}열`);
+                    
                     // 배열 형태로 데이터 읽기 (절대적 규칙: 전체 데이터 반영)
                     const rawData = XLSX.utils.sheet_to_json(firstSheet, { 
                         header: 1,
                         defval: "",
-                        raw: false
+                        raw: false,
+                        range: 0  // 첫 번째 행부터 끝까지 모든 데이터 읽기
                     });
                     
+                    console.log('🔍 원시 데이터 총 행수:', rawData.length);
+                    console.log('📝 첫 번째 행(헤더):', rawData[0]);
+                    
                     if (rawData.length > 1) {
-                        const headers = rawData[0];
+                        const headers = rawData[0].filter(h => h && h.toString().trim() !== ''); // 빈 헤더 제거
                         const dataRows = rawData.slice(1);
+                        
+                        console.log('📋 필터링된 헤더:', headers);
+                        console.log('📊 데이터 행수 (헤더 제외):', dataRows.length);
                         
                         // 마지막 설비 컬럼 제외 (요구사항)
                         const filteredHeaders = headers.slice(0, -1);
+                        console.log('🔧 마지막 컬럼 제외 후 헤더:', filteredHeaders);
+                        
+                        // 빈 행 개수 추적
+                        let emptyRowCount = 0;
+                        let processFilteredCount = 0;
                         
                         // 데이터 정제 및 변환
-                        excelData = dataRows.map(row => {
+                        excelData = dataRows.map((row, index) => {
+                            // 완전히 빈 행 체크
+                            const isEmptyRow = row.every(cell => !cell || cell.toString().trim() === '');
+                            if (isEmptyRow) {
+                                emptyRowCount++;
+                                return null;
+                            }
+                            
                             const obj = {};
-                            filteredHeaders.forEach((header, index) => {
-                                obj[header] = row[index] || "";
+                            filteredHeaders.forEach((header, headerIndex) => {
+                                obj[header] = row[headerIndex] || "";
                             });
                             return obj;
                         }).filter(row => {
+                            if (!row) return false; // null 제거 (빈 행)
+                            
                             // 공정명이 비어있으면 해당 행 삭제 (요구사항)
                             const processColumn = findColumn(filteredHeaders, ['공정명', '공정', 'process']);
-                            return processColumn && row[processColumn] && row[processColumn].toString().trim() !== '';
+                            const hasProcess = processColumn && row[processColumn] && row[processColumn].toString().trim() !== '';
+                            if (!hasProcess) {
+                                processFilteredCount++;
+                                return false;
+                            }
+                            return true;
                         }).map(row => {
                             // 나머지 빈 셀은 '0'으로 수정 (요구사항)
                             Object.keys(row).forEach(key => {
@@ -537,9 +567,22 @@
                             return row;
                         });
                         
-                        console.log('✅ 전체 데이터 로드 완료:', excelData.length, '행');
+                        console.log('✅ 전체 데이터 로드 완료');
+                        console.log('📊 최종 데이터 행수:', excelData.length);
+                        console.log('🗑️ 제거된 빈 행:', emptyRowCount);
+                        console.log('🗑️ 공정명 없어서 제거된 행:', processFilteredCount);
                         console.log('📝 헤더:', filteredHeaders);
                         console.log('📋 샘플 데이터:', excelData.slice(0, 3));
+                        
+                        // 데이터 검증
+                        const productionColumn = findColumn(filteredHeaders, ['생산수량', 'production', 'quantity', '수량']);
+                        if (productionColumn) {
+                            const totalCheck = excelData.reduce((sum, row) => {
+                                const val = parseFloat(row[productionColumn]) || 0;
+                                return sum + val;
+                            }, 0);
+                            console.log('🔢 생산수량 합계 검증:', totalCheck.toLocaleString());
+                        }
                         
                         // 공정번호와 공정명 매핑 생성
                         processMapping = createProcessMapping(excelData, filteredHeaders);
@@ -548,8 +591,9 @@
                         document.getElementById('fileInfo').innerHTML = `
                             <h4>✅ 파일 로드 완료</h4>
                             <p>파일명: ${file.name}</p>
-                            <p>총 데이터 행: ${excelData.length}개</p>
+                            <p>원시 데이터: ${rawData.length - 1}행 → 필터링 후: ${excelData.length}행</p>
                             <p>컬럼 수: ${filteredHeaders.length}개</p>
+                            <p>빈 행 제거: ${emptyRowCount}개, 공정명 없는 행 제거: ${processFilteredCount}개</p>
                         `;
                     }
                 } catch (error) {
@@ -619,6 +663,9 @@
                 return;
             }
             
+            console.log('🚀 데이터 분석 시작');
+            console.log('📊 분석할 데이터:', excelData.length, '행');
+            
             // 로딩 표시
             document.getElementById('result-container').innerHTML = '<div class="loading">🔄 데이터 분석 중...</div>';
             document.getElementById('result-container').style.display = 'block';
@@ -631,9 +678,38 @@
                     const processColumn = findColumn(headers, ['공정명', '공정', 'process']);
                     const productionColumn = findColumn(headers, ['생산수량', 'production', 'quantity', '수량']);
                     
+                    console.log('🔧 핵심 컬럼 확인:');
+                    console.log('- 공정명 컬럼:', processColumn);
+                    console.log('- 생산수량 컬럼:', productionColumn);
+                    
                     if (!processColumn || !productionColumn) {
                         throw new Error(`필수 컬럼을 찾을 수 없습니다.\n공정명: ${processColumn}\n생산수량: ${productionColumn}`);
                     }
+                    
+                    // 전체 데이터 검증
+                    let totalProductionCheck = 0;
+                    let validProductionRows = 0;
+                    let uniqueProcesses = new Set();
+                    
+                    excelData.forEach((row, index) => {
+                        const production = parseFloat(row[productionColumn]) || 0;
+                        const processName = row[processColumn];
+                        
+                        totalProductionCheck += production;
+                        if (production > 0) validProductionRows++;
+                        if (processName && processName !== '0') uniqueProcesses.add(processName);
+                        
+                        // 처음 5개 행 상세 출력
+                        if (index < 5) {
+                            console.log(`데이터 검증 - 행 ${index + 1}: 공정=${processName}, 생산수량=${production}`);
+                        }
+                    });
+                    
+                    console.log('📊 전체 데이터 검증 결과:');
+                    console.log(`- 총 생산수량: ${totalProductionCheck.toLocaleString()}`);
+                    console.log(`- 유효 생산 행: ${validProductionRows}개`);
+                    console.log(`- 고유 공정 수: ${uniqueProcesses.size}개`);
+                    console.log(`- 고유 공정명:`, Array.from(uniqueProcesses));
                     
                     // 분석 결과 컨테이너 초기화
                     document.getElementById('result-container').innerHTML = `
@@ -693,15 +769,25 @@
 
         // 1) 공정별 분석 생성
         function generateProcessAnalysis(processColumn, productionColumn, headers) {
+            console.log('🔍 공정별 분석 시작');
+            console.log('📊 사용 컬럼 - 공정:', processColumn, '생산수량:', productionColumn);
+            
             const processResults = {};
             let grandTotal = 0;
+            let processedRowCount = 0;
+            let skippedRowCount = 0;
             
             // 공정별 데이터 집계
-            excelData.forEach(row => {
+            excelData.forEach((row, index) => {
                 const processName = row[processColumn];
                 const productionValue = parseFloat(row[productionColumn]) || 0;
                 
-                if (processName && productionValue > 0) {
+                // 디버깅: 첫 10개 행의 상세 정보
+                if (index < 10) {
+                    console.log(`행 ${index + 1}: 공정=${processName}, 생산수량=${productionValue} (원본: ${row[productionColumn]})`);
+                }
+                
+                if (processName && processName !== '0') {
                     if (!processResults[processName]) {
                         processResults[processName] = {
                             total: 0,
@@ -710,11 +796,29 @@
                             data: []
                         };
                     }
+                    
                     processResults[processName].total += productionValue;
                     processResults[processName].count += 1;
                     processResults[processName].data.push(row);
                     grandTotal += productionValue;
+                    processedRowCount++;
+                } else {
+                    skippedRowCount++;
+                    if (index < 10) {
+                        console.log(`⚠️ 행 ${index + 1} 건너뜀: 공정명이 비어있음`);
+                    }
                 }
+            });
+            
+            console.log('📊 집계 결과:');
+            console.log(`- 처리된 행: ${processedRowCount}개`);
+            console.log(`- 건너뛴 행: ${skippedRowCount}개`);
+            console.log(`- 총 생산수량: ${grandTotal.toLocaleString()}`);
+            console.log(`- 발견된 공정: ${Object.keys(processResults).length}개`);
+            
+            // 각 공정별 합계 출력
+            Object.entries(processResults).forEach(([processName, data]) => {
+                console.log(`  ${processName}: ${data.total.toLocaleString()} (${data.count}건)`);
             });
             
             // 공정번호 순서대로 정렬
@@ -947,20 +1051,33 @@
 
         // 2) 생산 현황 종합
         function generateProductionSummary(headers) {
+            console.log('📊 생산 현황 종합 분석 시작');
+            
             const productionColumn = findColumn(headers, ['생산수량', 'production', 'quantity']);
             const equipmentColumn = findColumn(headers, ['설비', 'equipment', 'machine']);
             const workerColumn = findColumn(headers, ['작업자', 'worker', 'operator']);
             const timeColumn = findColumn(headers, ['시간', 'time', '작업시간']);
             const specColumn = findColumn(headers, ['규격', 'spec', 'model']);
             
+            console.log('🔧 사용 컬럼들:', {
+                생산수량: productionColumn,
+                설비: equipmentColumn,
+                작업자: workerColumn,
+                시간: timeColumn,
+                규격: specColumn
+            });
+            
             let totalProduction = 0;
             const equipmentSet = new Set();
             const workerSet = new Set();
             const specSet = new Set();
             let totalTime = 0;
+            let validRowCount = 0;
             
-            excelData.forEach(row => {
-                totalProduction += parseFloat(row[productionColumn]) || 0;
+            excelData.forEach((row, index) => {
+                const production = parseFloat(row[productionColumn]) || 0;
+                totalProduction += production;
+                
                 if (equipmentColumn && row[equipmentColumn] && row[equipmentColumn] !== '0') {
                     equipmentSet.add(row[equipmentColumn]);
                 }
@@ -970,8 +1087,26 @@
                 if (specColumn && row[specColumn] && row[specColumn] !== '0') {
                     specSet.add(row[specColumn]);
                 }
-                if (timeColumn) totalTime += parseFloat(row[timeColumn]) || 0;
+                if (timeColumn) {
+                    const time = parseFloat(row[timeColumn]) || 0;
+                    totalTime += time;
+                }
+                
+                if (production > 0) validRowCount++;
+                
+                // 처음 5개 행 디버깅
+                if (index < 5) {
+                    console.log(`행 ${index + 1}: 생산=${production}, 설비=${row[equipmentColumn]}, 작업자=${row[workerColumn]}, 시간=${row[timeColumn]}`);
+                }
             });
+            
+            console.log('📊 종합 분석 결과:');
+            console.log(`- 총 생산수량: ${totalProduction.toLocaleString()}`);
+            console.log(`- 유효 생산 행: ${validRowCount}개`);
+            console.log(`- 설비 종류: ${equipmentSet.size}개`);
+            console.log(`- 작업자 수: ${workerSet.size}명`);
+            console.log(`- 규격 종류: ${specSet.size}개`);
+            console.log(`- 총 작업시간: ${totalTime.toLocaleString()}`);
             
             const avgUPH = totalTime > 0 ? (totalProduction / totalTime).toFixed(2) : 'N/A';
             
