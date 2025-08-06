@@ -552,8 +552,12 @@
             const workerColumn = findColumn(headers, ['작업자', 'worker', 'operator']);
             const timeColumn = findColumn(headers, ['시간', 'time', 'hour']);
             const specColumn = findColumn(headers, ['규격', 'spec', 'model']);
+            const processColumn = findColumn(headers, ['공정', 'process', '라인', 'line']);
 
-            // 기본 통계 계산
+            // 공정별 데이터 분석
+            const processSummary = analyzeByProcess(processColumn);
+
+            // 전체 통계 계산
             const totalProduction = calculateSum(productionColumn);
             const uniqueEquipment = getUniqueCount(equipmentColumn);
             const uniqueWorkers = getUniqueCount(workerColumn);
@@ -561,7 +565,8 @@
             const uniqueSpecs = getUniqueCount(specColumn);
             const avgUPH = totalWorkTime > 0 ? (totalProduction / totalWorkTime).toFixed(1) : 'N/A';
 
-            const metrics = [
+            // 전체 현황 카드
+            const overallMetrics = [
                 { icon: '📈', label: '총 생산수량', value: totalProduction.toLocaleString(), color: '#4299e1' },
                 { icon: '🔧', label: '투입설비 대수', value: uniqueEquipment, color: '#38b2ac' },
                 { icon: '👨‍🔧', label: '투입인원 수', value: uniqueWorkers, color: '#68d391' },
@@ -570,13 +575,51 @@
                 { icon: '⚡', label: '평균 UPH', value: avgUPH, color: '#805ad5' }
             ];
 
-            container.innerHTML = metrics.map(metric => `
-                <div class="metric-card" style="--card-color: ${metric.color}">
-                    <div class="metric-icon">${metric.icon}</div>
-                    <div class="metric-value" style="color: ${metric.color}">${metric.value}</div>
-                    <div class="metric-label">${metric.label}</div>
+            const overallSection = `
+                <h3 style="font-size: 24px; font-weight: 700; margin-bottom: 20px; color: #2d3748;">📊 전체 현황</h3>
+                <div class="metrics-grid">
+                    ${overallMetrics.map(metric => `
+                        <div class="metric-card" style="--card-color: ${metric.color}">
+                            <div class="metric-icon">${metric.icon}</div>
+                            <div class="metric-value" style="color: ${metric.color}">${metric.value}</div>
+                            <div class="metric-label">${metric.label}</div>
+                        </div>
+                    `).join('')}
                 </div>
-            `).join('');
+            `;
+
+            // 공정별 상세 분석
+            const processSection = processSummary.length > 0 ? `
+                <h3 style="font-size: 24px; font-weight: 700; margin: 40px 0 20px 0; color: #2d3748;">🏭 공정별 상세 현황</h3>
+                <div class="data-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>공정명</th>
+                                <th>생산수량</th>
+                                <th>설비 대수</th>
+                                <th>작업자 수</th>
+                                <th>UPH</th>
+                                <th>점유율</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${processSummary.map(process => `
+                                <tr>
+                                    <td style="font-weight: 600;">${process.name}</td>
+                                    <td>${process.production.toLocaleString()}</td>
+                                    <td>${process.equipmentCount}대</td>
+                                    <td>${process.workerCount}명</td>
+                                    <td style="color: #4299e1; font-weight: 600;">${process.uph}</td>
+                                    <td style="color: #38a169; font-weight: 600;">${process.share}%</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            ` : '';
+
+            container.innerHTML = overallSection + processSection;
         }
 
         function generateEquipmentAnalysis() {
@@ -586,24 +629,30 @@
             const equipmentColumn = findColumn(headers, ['설비', 'equipment', 'machine']);
             const productionColumn = findColumn(headers, ['생산수량', 'production', 'quantity']);
             const defectColumn = findColumn(headers, ['불량', 'defect', 'error']);
+            const processColumn = findColumn(headers, ['공정', 'process', '라인', 'line']);
 
             if (!equipmentColumn) {
                 container.innerHTML = '<p class="no-data">설비 관련 데이터를 찾을 수 없습니다.</p>';
                 return;
             }
 
+            // 공정별 설비 분석
+            const processEquipmentStats = {};
             const equipmentStats = {};
             
             excelData.forEach(row => {
                 const equipment = row[equipmentColumn];
                 const production = parseFloat(row[productionColumn]) || 0;
                 const defect = parseFloat(row[defectColumn]) || 0;
+                const process = row[processColumn] || '미분류';
 
+                // 전체 설비 통계
                 if (equipment && !equipmentStats[equipment]) {
                     equipmentStats[equipment] = {
                         totalProduction: 0,
                         totalDefect: 0,
-                        records: 0
+                        records: 0,
+                        process: process
                     };
                 }
 
@@ -612,6 +661,21 @@
                     equipmentStats[equipment].totalDefect += defect;
                     equipmentStats[equipment].records++;
                 }
+
+                // 공정별 설비 통계
+                if (!processEquipmentStats[process]) {
+                    processEquipmentStats[process] = {
+                        equipmentCount: new Set(),
+                        totalProduction: 0,
+                        totalDefect: 0
+                    };
+                }
+
+                if (equipment) {
+                    processEquipmentStats[process].equipmentCount.add(equipment);
+                }
+                processEquipmentStats[process].totalProduction += production;
+                processEquipmentStats[process].totalDefect += defect;
             });
 
             // 전체 통계
@@ -622,6 +686,7 @@
 
             // 전체 현황 카드
             const summaryCards = `
+                <h3 style="font-size: 24px; font-weight: 700; margin-bottom: 20px; color: #2d3748;">🏭 전체 설비 현황</h3>
                 <div class="metrics-grid">
                     <div class="metric-card" style="--card-color: #4299e1">
                         <div class="metric-icon">🏭</div>
@@ -646,6 +711,30 @@
                 </div>
             `;
 
+            // 공정별 설비 요약
+            const processCards = Object.entries(processEquipmentStats).map(([process, stats]) => {
+                const defectRate = stats.totalProduction > 0 ? ((stats.totalDefect / stats.totalProduction) * 100).toFixed(1) : 0;
+                const equipmentCount = stats.equipmentCount.size;
+                
+                return `
+                    <div class="metric-card" style="--card-color: #667eea">
+                        <div class="metric-icon">🔧</div>
+                        <div class="metric-value" style="color: #667eea">${equipmentCount}대</div>
+                        <div class="metric-label">${process} 설비</div>
+                        <div style="font-size: 14px; color: #718096; margin-top: 5px;">
+                            불량율: ${defectRate}%
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const processSection = `
+                <h3 style="font-size: 24px; font-weight: 700; margin: 40px 0 20px 0; color: #2d3748;">🏭 공정별 설비 현황</h3>
+                <div class="metrics-grid">
+                    ${processCards}
+                </div>
+            `;
+
             // 개별 설비 테이블
             const tableRows = Object.entries(equipmentStats).map(([equipment, stats]) => {
                 const defectRate = stats.totalProduction > 0 ? ((stats.totalDefect / stats.totalProduction) * 100).toFixed(1) : 0;
@@ -655,6 +744,7 @@
                 return `
                     <tr>
                         <td style="font-weight: 600;">${equipment}</td>
+                        <td style="color: #667eea; font-weight: 600;">${stats.process}</td>
                         <td>${stats.totalProduction.toLocaleString()}</td>
                         <td>${operationRate}%</td>
                         <td>${efficiency}%</td>
@@ -664,11 +754,13 @@
             }).join('');
 
             const equipmentTable = `
+                <h3 style="font-size: 24px; font-weight: 700; margin: 40px 0 20px 0; color: #2d3748;">📋 개별 설비 상세 분석</h3>
                 <div class="data-table">
                     <table>
                         <thead>
                             <tr>
                                 <th>설비명</th>
+                                <th>소속 공정</th>
                                 <th>생산수량</th>
                                 <th>가동율</th>
                                 <th>효율</th>
@@ -682,7 +774,7 @@
                 </div>
             `;
 
-            container.innerHTML = summaryCards + equipmentTable;
+            container.innerHTML = summaryCards + processSection + equipmentTable;
         }
 
         function generateProductAnalysis() {
@@ -692,24 +784,30 @@
             const specColumn = findColumn(headers, ['규격', 'spec', 'model']);
             const productionColumn = findColumn(headers, ['생산수량', 'production', 'quantity']);
             const equipmentColumn = findColumn(headers, ['설비', 'equipment', 'machine']);
+            const processColumn = findColumn(headers, ['공정', 'process', '라인', 'line']);
 
             if (!specColumn) {
                 container.innerHTML = '<p class="no-data">제품 규격 관련 데이터를 찾을 수 없습니다.</p>';
                 return;
             }
 
+            // 공정별 제품 분석
+            const processProductStats = {};
             const specStats = {};
             
             excelData.forEach(row => {
                 const spec = row[specColumn];
                 const production = parseFloat(row[productionColumn]) || 0;
                 const equipment = row[equipmentColumn];
+                const process = row[processColumn] || '미분류';
 
+                // 제품별 통계
                 if (spec && !specStats[spec]) {
                     specStats[spec] = {
                         totalProduction: 0,
                         equipmentSet: new Set(),
-                        records: 0
+                        records: 0,
+                        process: process
                     };
                 }
 
@@ -718,8 +816,45 @@
                     if (equipment) specStats[spec].equipmentSet.add(equipment);
                     specStats[spec].records++;
                 }
+
+                // 공정별 통계
+                if (!processProductStats[process]) {
+                    processProductStats[process] = {
+                        specs: new Set(),
+                        totalProduction: 0,
+                        equipmentSet: new Set()
+                    };
+                }
+
+                if (spec) processProductStats[process].specs.add(spec);
+                processProductStats[process].totalProduction += production;
+                if (equipment) processProductStats[process].equipmentSet.add(equipment);
             });
 
+            // 공정별 제품 요약 카드
+            const processCards = Object.entries(processProductStats).map(([process, stats]) => {
+                const avgUPH = stats.totalProduction > 0 ? (stats.totalProduction / stats.specs.size).toFixed(1) : 'N/A';
+                
+                return `
+                    <div class="metric-card" style="--card-color: #fa709a">
+                        <div class="metric-icon">📦</div>
+                        <div class="metric-value" style="color: #fa709a">${stats.specs.size}</div>
+                        <div class="metric-label">${process} 제품 규격</div>
+                        <div style="font-size: 14px; color: #718096; margin-top: 5px;">
+                            생산량: ${stats.totalProduction.toLocaleString()}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const processSection = `
+                <h3 style="font-size: 24px; font-weight: 700; margin-bottom: 20px; color: #2d3748;">📦 공정별 제품 현황</h3>
+                <div class="metrics-grid">
+                    ${processCards}
+                </div>
+            `;
+
+            // 제품별 상세 테이블
             const tableRows = Object.entries(specStats).map(([spec, stats]) => {
                 const uph = (stats.totalProduction / stats.records).toFixed(1);
                 const ct = (3600 / parseFloat(uph)).toFixed(1); // 예시 계산
@@ -730,6 +865,7 @@
                 return `
                     <tr>
                         <td style="font-weight: 600;">${spec}</td>
+                        <td style="color: #667eea; font-weight: 600;">${stats.process}</td>
                         <td>${stats.totalProduction.toLocaleString()}</td>
                         <td>${uph}</td>
                         <td>${ct}초</td>
@@ -741,11 +877,13 @@
             }).join('');
 
             const productTable = `
+                <h3 style="font-size: 24px; font-weight: 700; margin: 40px 0 20px 0; color: #2d3748;">📋 제품별 상세 분석</h3>
                 <div class="data-table">
                     <table>
                         <thead>
                             <tr>
                                 <th>규격</th>
+                                <th>소속 공정</th>
                                 <th>생산수량</th>
                                 <th>UPH</th>
                                 <th>C/T</th>
@@ -761,7 +899,7 @@
                 </div>
             `;
 
-            container.innerHTML = productTable;
+            container.innerHTML = processSection + productTable;
         }
 
         function generateWorkerAnalysis() {
@@ -771,24 +909,30 @@
             const workerColumn = findColumn(headers, ['작업자', 'worker', 'operator']);
             const productionColumn = findColumn(headers, ['생산수량', 'production', 'quantity']);
             const equipmentColumn = findColumn(headers, ['설비', 'equipment', 'machine']);
+            const processColumn = findColumn(headers, ['공정', 'process', '라인', 'line']);
 
             if (!workerColumn) {
                 container.innerHTML = '<p class="no-data">작업자 관련 데이터를 찾을 수 없습니다.</p>';
                 return;
             }
 
+            // 공정별 작업자 분석
+            const processWorkerStats = {};
             const workerStats = {};
             
             excelData.forEach(row => {
                 const worker = row[workerColumn];
                 const production = parseFloat(row[productionColumn]) || 0;
                 const equipment = row[equipmentColumn];
+                const process = row[processColumn] || '미분류';
 
+                // 작업자별 통계
                 if (worker && !workerStats[worker]) {
                     workerStats[worker] = {
                         totalProduction: 0,
                         equipmentSet: new Set(),
-                        records: 0
+                        records: 0,
+                        process: process
                     };
                 }
 
@@ -797,6 +941,19 @@
                     if (equipment) workerStats[worker].equipmentSet.add(equipment);
                     workerStats[worker].records++;
                 }
+
+                // 공정별 통계
+                if (!processWorkerStats[process]) {
+                    processWorkerStats[process] = {
+                        workers: new Set(),
+                        totalProduction: 0,
+                        equipmentSet: new Set()
+                    };
+                }
+
+                if (worker) processWorkerStats[process].workers.add(worker);
+                processWorkerStats[process].totalProduction += production;
+                if (equipment) processWorkerStats[process].equipmentSet.add(equipment);
             });
 
             // 전체 통계
@@ -805,6 +962,7 @@
             const avgEquipmentPerWorker = Object.values(workerStats).reduce((sum, stat) => sum + stat.equipmentSet.size, 0) / totalWorkers;
 
             const summaryCards = `
+                <h3 style="font-size: 24px; font-weight: 700; margin-bottom: 20px; color: #2d3748;">👥 전체 작업자 현황</h3>
                 <div class="metrics-grid">
                     <div class="metric-card" style="--card-color: #4299e1">
                         <div class="metric-icon">👥</div>
@@ -824,10 +982,36 @@
                 </div>
             `;
 
+            // 공정별 작업자 요약 카드
+            const processCards = Object.entries(processWorkerStats).map(([process, stats]) => {
+                const avgProductionPerWorker = stats.workers.size > 0 ? (stats.totalProduction / stats.workers.size).toFixed(0) : '0';
+                const avgEquipmentPerWorker = stats.workers.size > 0 ? (stats.equipmentSet.size / stats.workers.size).toFixed(1) : '0';
+                
+                return `
+                    <div class="metric-card" style="--card-color: #a8edea">
+                        <div class="metric-icon">👨‍🔧</div>
+                        <div class="metric-value" style="color: #a8edea">${stats.workers.size}명</div>
+                        <div class="metric-label">${process} 작업자</div>
+                        <div style="font-size: 14px; color: #718096; margin-top: 5px;">
+                            인당: ${parseInt(avgProductionPerWorker).toLocaleString()}개, 설비 ${avgEquipmentPerWorker}대
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const processSection = `
+                <h3 style="font-size: 24px; font-weight: 700; margin: 40px 0 20px 0; color: #2d3748;">🏭 공정별 작업자 현황</h3>
+                <div class="metrics-grid">
+                    ${processCards}
+                </div>
+            `;
+
+            // 작업자별 상세 테이블
             const tableRows = Object.entries(workerStats).map(([worker, stats]) => {
                 return `
                     <tr>
                         <td style="font-weight: 600;">${worker}</td>
+                        <td style="color: #667eea; font-weight: 600;">${stats.process}</td>
                         <td>${stats.totalProduction.toLocaleString()}</td>
                         <td>${stats.equipmentSet.size}대</td>
                     </tr>
@@ -835,11 +1019,13 @@
             }).join('');
 
             const workerTable = `
+                <h3 style="font-size: 24px; font-weight: 700; margin: 40px 0 20px 0; color: #2d3748;">📋 작업자별 상세 분석</h3>
                 <div class="data-table">
                     <table>
                         <thead>
                             <tr>
                                 <th>작업자</th>
+                                <th>소속 공정</th>
                                 <th>인당 생산량</th>
                                 <th>인당 설비 운영 대수</th>
                             </tr>
@@ -851,7 +1037,7 @@
                 </div>
             `;
 
-            container.innerHTML = summaryCards + workerTable;
+            container.innerHTML = summaryCards + processSection + workerTable;
         }
 
         function generateProductivityAnalysis() {
@@ -861,6 +1047,31 @@
             const productionColumn = findColumn(headers, ['생산수량', 'production', 'quantity']);
             const timeColumn = findColumn(headers, ['시간', 'time', 'hour']);
             const defectColumn = findColumn(headers, ['불량', 'defect', 'error']);
+            const processColumn = findColumn(headers, ['공정', 'process', '라인', 'line']);
+
+            // 공정별 생산성 분석
+            const processProductivityStats = {};
+            
+            excelData.forEach(row => {
+                const production = parseFloat(row[productionColumn]) || 0;
+                const defect = parseFloat(row[defectColumn]) || 0;
+                const process = row[processColumn] || '미분류';
+                const hour = extractHour(row[timeColumn]);
+
+                if (!processProductivityStats[process]) {
+                    processProductivityStats[process] = {
+                        totalProduction: 0,
+                        totalDefect: 0,
+                        totalTime: 0,
+                        records: 0
+                    };
+                }
+
+                processProductivityStats[process].totalProduction += production;
+                processProductivityStats[process].totalDefect += defect;
+                processProductivityStats[process].totalTime += 1; // 시간 단위 가정
+                processProductivityStats[process].records++;
+            });
 
             // UPH 계산
             const totalProduction = calculateSum(productionColumn);
@@ -888,6 +1099,7 @@
 
             // 전체 UPH 카드
             const uphCards = `
+                <h3 style="font-size: 24px; font-weight: 700; margin-bottom: 20px; color: #2d3748;">⚡ 전체 생산성 현황</h3>
                 <div class="metrics-grid">
                     <div class="metric-card" style="--card-color: #4299e1">
                         <div class="metric-icon">⚡</div>
@@ -896,7 +1108,7 @@
                     </div>
                     <div class="metric-card" style="--card-color: #38b2ac">
                         <div class="metric-icon">📈</div>
-                        <div class="metric-value" style="color: #38b2ac">${Math.max(...Object.values(hourlyStats).map(s => (s.production/s.count).toFixed(1)))}</div>
+                        <div class="metric-value" style="color: #38b2ac">${Object.keys(hourlyStats).length > 0 ? Math.max(...Object.values(hourlyStats).map(s => (s.production/s.count).toFixed(1))) : 'N/A'}</div>
                         <div class="metric-label">최고 시간대 UPH</div>
                     </div>
                     <div class="metric-card" style="--card-color: #fc8181">
@@ -904,6 +1116,30 @@
                         <div class="metric-value" style="color: #fc8181">${overallDefectRate}%</div>
                         <div class="metric-label">전체 불량율</div>
                     </div>
+                </div>
+            `;
+
+            // 공정별 생산성 카드
+            const processCards = Object.entries(processProductivityStats).map(([process, stats]) => {
+                const uph = stats.totalTime > 0 ? (stats.totalProduction / stats.totalTime).toFixed(1) : 'N/A';
+                const defectRate = stats.totalProduction > 0 ? ((stats.totalDefect / stats.totalProduction) * 100).toFixed(1) : 0;
+                
+                return `
+                    <div class="metric-card" style="--card-color: #ff9a9e">
+                        <div class="metric-icon">🏭</div>
+                        <div class="metric-value" style="color: #ff9a9e">${uph}</div>
+                        <div class="metric-label">${process} UPH</div>
+                        <div style="font-size: 14px; color: #718096; margin-top: 5px;">
+                            불량율: ${defectRate}%
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const processSection = `
+                <h3 style="font-size: 24px; font-weight: 700; margin: 40px 0 20px 0; color: #2d3748;">🏭 공정별 생산성</h3>
+                <div class="metrics-grid">
+                    ${processCards}
                 </div>
             `;
 
@@ -925,6 +1161,7 @@
                 }).join('');
 
             const hourlyTable = `
+                <h3 style="font-size: 24px; font-weight: 700; margin: 40px 0 20px 0; color: #2d3748;">🕐 시간대별 생산성 분석</h3>
                 <div class="data-table">
                     <table>
                         <thead>
@@ -942,7 +1179,7 @@
                 </div>
             `;
 
-            container.innerHTML = uphCards + hourlyTable;
+            container.innerHTML = uphCards + processSection + hourlyTable;
         }
 
         function generateShiftAnalysis() {
@@ -1144,6 +1381,57 @@
             }
             
             return null;
+        }
+
+        // 공정별 분석 유틸리티 함수
+        function analyzeByProcess(processColumn) {
+            if (!processColumn) return [];
+
+            const headers = Object.keys(excelData[0]);
+            const productionColumn = findColumn(headers, ['생산수량', 'production', 'quantity']);
+            const equipmentColumn = findColumn(headers, ['설비', 'equipment', 'machine']);
+            const workerColumn = findColumn(headers, ['작업자', 'worker', 'operator']);
+            const timeColumn = findColumn(headers, ['시간', 'time', 'hour']);
+
+            const processStats = {};
+            const totalProduction = calculateSum(productionColumn);
+
+            excelData.forEach(row => {
+                const process = row[processColumn] || '미분류';
+                const production = parseFloat(row[productionColumn]) || 0;
+                const equipment = row[equipmentColumn];
+                const worker = row[workerColumn];
+
+                if (!processStats[process]) {
+                    processStats[process] = {
+                        totalProduction: 0,
+                        equipmentSet: new Set(),
+                        workerSet: new Set(),
+                        totalTime: 0,
+                        records: 0
+                    };
+                }
+
+                processStats[process].totalProduction += production;
+                if (equipment) processStats[process].equipmentSet.add(equipment);
+                if (worker) processStats[process].workerSet.add(worker);
+                processStats[process].totalTime += 1; // 시간 단위 가정
+                processStats[process].records++;
+            });
+
+            return Object.entries(processStats).map(([process, stats]) => {
+                const uph = stats.totalTime > 0 ? (stats.totalProduction / stats.totalTime).toFixed(1) : 'N/A';
+                const share = totalProduction > 0 ? ((stats.totalProduction / totalProduction) * 100).toFixed(1) : 0;
+
+                return {
+                    name: process,
+                    production: stats.totalProduction,
+                    equipmentCount: stats.equipmentSet.size,
+                    workerCount: stats.workerSet.size,
+                    uph: uph,
+                    share: share
+                };
+            }).sort((a, b) => b.production - a.production);
         }
 
         function exportToPDF() {
