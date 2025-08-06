@@ -419,48 +419,37 @@
             
             const totalProduction = productions.reduce((sum, val) => sum + val, 0);
             const avgProduction = productions.length > 0 ? totalProduction / productions.length : 0;
-            const maxProduction = productions.length > 0 ? Math.max(...productions) : 0;
-            const minProduction = productions.length > 0 ? Math.min(...productions) : 0;
             
-            // 생산성 지표 계산
-            const productivity = {
-                total: totalProduction,
-                average: avgProduction,
-                max: maxProduction,
-                min: minProduction,
-                count: processData.length,
-                validCount: productions.length,
-                efficiency: productions.length / processData.length * 100, // 유효 데이터 비율
-                variability: productions.length > 1 ? calculateStandardDeviation(productions) : 0
-            };
+            // 1) 생산 현황 종합 분석
+            const productionSummary = analyzeProductionSummary(processData, headers, totalProduction);
             
-            // 시간별/날짜별 분석 (날짜 컬럼이 있는 경우)
-            const dateColumn = headers.find(header => 
-                header.includes('날짜') || header.includes('일자') || header.includes('시간') || 
-                header.toLowerCase().includes('date') || header.toLowerCase().includes('time')
-            );
+            // 2) 설비별 분석
+            const equipmentAnalysis = analyzeEquipmentData(processData, headers);
             
-            let timeAnalysis = null;
-            if (dateColumn) {
-                timeAnalysis = analyzeTimeData(processData, dateColumn, productionColumn);
-            }
+            // 3) 작업자별 분석
+            const workerAnalysis = analyzeWorkerData(processData, headers);
             
-            // 품질/결함 분석 (관련 컬럼이 있는 경우)
-            const qualityColumns = headers.filter(header => 
-                header.includes('품질') || header.includes('결함') || header.includes('불량') ||
-                header.toLowerCase().includes('quality') || header.toLowerCase().includes('defect')
-            );
+            // 4) 시간대별 분석
+            const hourlyAnalysis = analyzeHourlyData(processData, headers);
             
-            let qualityAnalysis = null;
-            if (qualityColumns.length > 0) {
-                qualityAnalysis = analyzeQualityData(processData, qualityColumns);
-            }
+            // 5) 교대별 분석
+            const shiftAnalysis = analyzeShiftData(processData, headers);
+            
+            // 6) 규격별 분석
+            const specAnalysis = analyzeSpecData(processData, headers);
+            
+            // 7) 작업자별 설비 운영 실적
+            const workerEquipmentAnalysis = analyzeWorkerEquipmentData(processData, headers);
             
             return {
-                productivity,
-                timeAnalysis,
-                qualityAnalysis,
-                rawData: processData.slice(0, 10) // 상위 10개 원본 데이터
+                productionSummary,
+                equipmentAnalysis,
+                workerAnalysis,
+                hourlyAnalysis,
+                shiftAnalysis,
+                specAnalysis,
+                workerEquipmentAnalysis,
+                rawData: processData.slice(0, 5) // 상위 5개 원본 데이터
             };
         }
         
@@ -469,6 +458,342 @@
             const squaredDiffs = values.map(val => Math.pow(val - mean, 2));
             const avgSquaredDiff = squaredDiffs.reduce((sum, val) => sum + val, 0) / values.length;
             return Math.sqrt(avgSquaredDiff);
+        }
+        
+        // 1) 생산 현황 종합 분석
+        function analyzeProductionSummary(processData, headers, totalProduction) {
+            const equipmentColumn = findColumn(headers, ['설비', '장비', 'equipment', 'machine']);
+            const workerColumn = findColumn(headers, ['작업자', '인원', 'worker', 'operator']);
+            const timeColumn = findColumn(headers, ['작업시간', '운영시간', 'time', 'hour']);
+            
+            const equipmentCount = equipmentColumn ? getUniqueCount(processData, equipmentColumn) : 0;
+            const workerCount = workerColumn ? getUniqueCount(processData, workerColumn) : 0;
+            const totalWorkTime = timeColumn ? getSumValue(processData, timeColumn) : 0;
+            const avgUPH = totalWorkTime > 0 ? (totalProduction / totalWorkTime).toFixed(2) : 0;
+            
+            return {
+                totalProduction,
+                equipmentCount,
+                workerCount,
+                totalWorkTime,
+                avgUPH
+            };
+        }
+        
+        // 2) 설비별 분석
+        function analyzeEquipmentData(processData, headers) {
+            const equipmentColumn = findColumn(headers, ['설비', '장비', 'equipment', 'machine']);
+            const productionColumn = findColumn(headers, ['생산수량', 'production', 'quantity']);
+            const defectColumn = findColumn(headers, ['불량', '결함', 'defect', 'reject']);
+            const workerColumn = findColumn(headers, ['작업자', '인원', 'worker', 'operator']);
+            
+            if (!equipmentColumn) return null;
+            
+            const equipmentStats = {};
+            
+            processData.forEach(row => {
+                const equipment = row[equipmentColumn];
+                const production = parseFloat(row[productionColumn]) || 0;
+                const defect = parseFloat(row[defectColumn]) || 0;
+                const worker = row[workerColumn];
+                
+                if (!equipmentStats[equipment]) {
+                    equipmentStats[equipment] = {
+                        totalProduction: 0,
+                        totalDefect: 0,
+                        workers: new Set(),
+                        records: 0
+                    };
+                }
+                
+                equipmentStats[equipment].totalProduction += production;
+                equipmentStats[equipment].totalDefect += defect;
+                equipmentStats[equipment].records += 1;
+                if (worker) equipmentStats[equipment].workers.add(worker);
+            });
+            
+            // 각 설비별 지표 계산
+            Object.keys(equipmentStats).forEach(equipment => {
+                const stats = equipmentStats[equipment];
+                stats.productivity = (stats.totalProduction / stats.records).toFixed(2);
+                stats.operationRate = ((stats.records / processData.length) * 100).toFixed(1);
+                stats.defectRate = stats.totalProduction > 0 ? ((stats.totalDefect / stats.totalProduction) * 100).toFixed(2) : 0;
+                stats.requiredWorkers = stats.workers.size;
+            });
+            
+            return equipmentStats;
+        }
+        
+        // 3) 작업자별 분석
+        function analyzeWorkerData(processData, headers) {
+            const workerColumn = findColumn(headers, ['작업자', '인원', 'worker', 'operator']);
+            const productionColumn = findColumn(headers, ['생산수량', 'production', 'quantity']);
+            const defectColumn = findColumn(headers, ['불량', '결함', 'defect', 'reject']);
+            const equipmentColumn = findColumn(headers, ['설비', '장비', 'equipment', 'machine']);
+            
+            if (!workerColumn) return null;
+            
+            const workerStats = {};
+            
+            processData.forEach(row => {
+                const worker = row[workerColumn];
+                const production = parseFloat(row[productionColumn]) || 0;
+                const defect = parseFloat(row[defectColumn]) || 0;
+                const equipment = row[equipmentColumn];
+                
+                if (!workerStats[worker]) {
+                    workerStats[worker] = {
+                        totalProduction: 0,
+                        totalDefect: 0,
+                        equipments: new Set(),
+                        records: 0
+                    };
+                }
+                
+                workerStats[worker].totalProduction += production;
+                workerStats[worker].totalDefect += defect;
+                workerStats[worker].records += 1;
+                if (equipment) workerStats[worker].equipments.add(equipment);
+            });
+            
+            // 각 작업자별 지표 계산
+            Object.keys(workerStats).forEach(worker => {
+                const stats = workerStats[worker];
+                stats.productivity = (stats.totalProduction / stats.records).toFixed(2);
+                stats.defectRate = stats.totalProduction > 0 ? ((stats.totalDefect / stats.totalProduction) * 100).toFixed(2) : 0;
+                stats.equipmentCount = stats.equipments.size;
+            });
+            
+            return workerStats;
+        }
+        
+        // 4) 시간대별 분석 (24시간)
+        function analyzeHourlyData(processData, headers) {
+            const timeColumn = findColumn(headers, ['시간', '작업시간', 'time', 'hour']);
+            const productionColumn = findColumn(headers, ['생산수량', 'production', 'quantity']);
+            const defectColumn = findColumn(headers, ['불량', '결함', 'defect', 'reject']);
+            
+            if (!timeColumn) return null;
+            
+            const hourlyStats = {};
+            
+            processData.forEach(row => {
+                const timeValue = row[timeColumn];
+                const hour = extractHour(timeValue);
+                const production = parseFloat(row[productionColumn]) || 0;
+                const defect = parseFloat(row[defectColumn]) || 0;
+                
+                if (hour !== null) {
+                    if (!hourlyStats[hour]) {
+                        hourlyStats[hour] = {
+                            totalProduction: 0,
+                            totalDefect: 0,
+                            records: 0
+                        };
+                    }
+                    
+                    hourlyStats[hour].totalProduction += production;
+                    hourlyStats[hour].totalDefect += defect;
+                    hourlyStats[hour].records += 1;
+                }
+            });
+            
+            // 시간대별 지표 계산
+            Object.keys(hourlyStats).forEach(hour => {
+                const stats = hourlyStats[hour];
+                stats.productivity = (stats.totalProduction / stats.records).toFixed(2);
+                stats.uph = stats.totalProduction; // UPH = Unit Per Hour
+                stats.defectRate = stats.totalProduction > 0 ? ((stats.totalDefect / stats.totalProduction) * 100).toFixed(2) : 0;
+            });
+            
+            return hourlyStats;
+        }
+        
+        // 5) 교대별 분석
+        function analyzeShiftData(processData, headers) {
+            const shiftColumn = findColumn(headers, ['교대', '조', 'shift']);
+            const timeColumn = findColumn(headers, ['시간', '작업시간', 'time', 'hour']);
+            const productionColumn = findColumn(headers, ['생산수량', 'production', 'quantity']);
+            
+            let shiftStats = {};
+            
+            if (shiftColumn) {
+                // 교대 컬럼이 있는 경우
+                processData.forEach(row => {
+                    const shift = row[shiftColumn];
+                    const production = parseFloat(row[productionColumn]) || 0;
+                    
+                    if (!shiftStats[shift]) {
+                        shiftStats[shift] = { totalProduction: 0, records: 0 };
+                    }
+                    
+                    shiftStats[shift].totalProduction += production;
+                    shiftStats[shift].records += 1;
+                });
+            } else if (timeColumn) {
+                // 시간으로 교대 추정
+                processData.forEach(row => {
+                    const timeValue = row[timeColumn];
+                    const hour = extractHour(timeValue);
+                    const production = parseFloat(row[productionColumn]) || 0;
+                    
+                    if (hour !== null) {
+                        let shift = '주간조';
+                        if (hour >= 6 && hour < 14) shift = '주간조';
+                        else if (hour >= 14 && hour < 22) shift = '오후조';
+                        else shift = '야간조';
+                        
+                        if (!shiftStats[shift]) {
+                            shiftStats[shift] = { totalProduction: 0, records: 0 };
+                        }
+                        
+                        shiftStats[shift].totalProduction += production;
+                        shiftStats[shift].records += 1;
+                    }
+                });
+            }
+            
+            // 교대별 생산성 계산
+            Object.keys(shiftStats).forEach(shift => {
+                const stats = shiftStats[shift];
+                stats.productivity = (stats.totalProduction / stats.records).toFixed(2);
+            });
+            
+            return Object.keys(shiftStats).length > 0 ? shiftStats : null;
+        }
+        
+        // 6) 규격별 분석
+        function analyzeSpecData(processData, headers) {
+            const specColumn = findColumn(headers, ['규격', '모델', 'spec', 'model', 'type']);
+            const productionColumn = findColumn(headers, ['생산수량', 'production', 'quantity']);
+            const ctColumn = findColumn(headers, ['CT', 'C/T', 'cycle_time', 'cycletime']);
+            const defectColumn = findColumn(headers, ['불량', '결함', 'defect', 'reject']);
+            const equipmentColumn = findColumn(headers, ['설비', '장비', 'equipment', 'machine']);
+            
+            if (!specColumn) return null;
+            
+            const specStats = {};
+            
+            processData.forEach(row => {
+                const spec = row[specColumn];
+                const production = parseFloat(row[productionColumn]) || 0;
+                const ct = parseFloat(row[ctColumn]) || 0;
+                const defect = parseFloat(row[defectColumn]) || 0;
+                const equipment = row[equipmentColumn];
+                
+                if (!specStats[spec]) {
+                    specStats[spec] = {
+                        totalProduction: 0,
+                        totalDefect: 0,
+                        totalCT: 0,
+                        equipments: new Set(),
+                        records: 0
+                    };
+                }
+                
+                specStats[spec].totalProduction += production;
+                specStats[spec].totalDefect += defect;
+                specStats[spec].totalCT += ct;
+                specStats[spec].records += 1;
+                if (equipment) specStats[spec].equipments.add(equipment);
+            });
+            
+            // 규격별 지표 계산
+            Object.keys(specStats).forEach(spec => {
+                const stats = specStats[spec];
+                stats.productivity = (stats.totalProduction / stats.records).toFixed(2);
+                stats.avgCT = stats.records > 0 ? (stats.totalCT / stats.records).toFixed(2) : 0;
+                stats.efficiency = stats.avgCT > 0 ? ((60 / stats.avgCT) * 100).toFixed(1) : 0; // 효율 = (표준 시간 / 실제 시간) * 100
+                stats.defectRate = stats.totalProduction > 0 ? ((stats.totalDefect / stats.totalProduction) * 100).toFixed(2) : 0;
+                stats.equipmentList = Array.from(stats.equipments);
+            });
+            
+            return specStats;
+        }
+        
+        // 7) 작업자별 설비 운영 실적
+        function analyzeWorkerEquipmentData(processData, headers) {
+            const workerColumn = findColumn(headers, ['작업자', '인원', 'worker', 'operator']);
+            const equipmentColumn = findColumn(headers, ['설비', '장비', 'equipment', 'machine']);
+            const productionColumn = findColumn(headers, ['생산수량', 'production', 'quantity']);
+            
+            if (!workerColumn || !equipmentColumn) return null;
+            
+            const workerEquipmentStats = {};
+            
+            processData.forEach(row => {
+                const worker = row[workerColumn];
+                const equipment = row[equipmentColumn];
+                const production = parseFloat(row[productionColumn]) || 0;
+                
+                if (!workerEquipmentStats[worker]) {
+                    workerEquipmentStats[worker] = {};
+                }
+                
+                if (!workerEquipmentStats[worker][equipment]) {
+                    workerEquipmentStats[worker][equipment] = {
+                        totalProduction: 0,
+                        records: 0
+                    };
+                }
+                
+                workerEquipmentStats[worker][equipment].totalProduction += production;
+                workerEquipmentStats[worker][equipment].records += 1;
+            });
+            
+            // 작업자별 설비 운영 대수 계산
+            const result = {};
+            Object.keys(workerEquipmentStats).forEach(worker => {
+                const equipments = workerEquipmentStats[worker];
+                result[worker] = {
+                    equipmentCount: Object.keys(equipments).length,
+                    equipmentDetails: equipments
+                };
+            });
+            
+            return result;
+        }
+        
+        // 유틸리티 함수들
+        function findColumn(headers, keywords) {
+            return headers.find(header => 
+                keywords.some(keyword => 
+                    header.includes(keyword) || header.toLowerCase().includes(keyword.toLowerCase())
+                )
+            );
+        }
+        
+        function getUniqueCount(data, column) {
+            return new Set(data.map(row => row[column]).filter(val => val)).size;
+        }
+        
+        function getSumValue(data, column) {
+            return data.reduce((sum, row) => {
+                const val = parseFloat(row[column]);
+                return sum + (isNaN(val) ? 0 : val);
+            }, 0);
+        }
+        
+        function extractHour(timeValue) {
+            if (!timeValue) return null;
+            
+            // 다양한 시간 형식 처리
+            const timeStr = timeValue.toString();
+            
+            // HH:MM 형식
+            const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
+            if (timeMatch) {
+                return parseInt(timeMatch[1]);
+            }
+            
+            // 숫자만 있는 경우 (시간)
+            const numMatch = timeStr.match(/^\d{1,2}$/);
+            if (numMatch) {
+                const hour = parseInt(timeStr);
+                return hour >= 0 && hour <= 23 ? hour : null;
+            }
+            
+            return null;
         }
         
         function analyzeTimeData(processData, dateColumn, productionColumn) {
@@ -547,69 +872,177 @@
             
             modalTitle.textContent = `${processName} 공정 상세 분석`;
             
-            let contentHTML = `
-                <div class="stat-grid">
-                    <div class="stat-card">
-                        <div class="stat-value">${analysis.productivity.total.toLocaleString()}</div>
-                        <div class="stat-label">총 생산량</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${analysis.productivity.average.toFixed(2)}</div>
-                        <div class="stat-label">평균 생산량</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${analysis.productivity.max.toLocaleString()}</div>
-                        <div class="stat-label">최대 생산량</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${analysis.productivity.min.toLocaleString()}</div>
-                        <div class="stat-label">최소 생산량</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${analysis.productivity.efficiency.toFixed(1)}%</div>
-                        <div class="stat-label">데이터 유효율</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${analysis.productivity.variability.toFixed(2)}</div>
-                        <div class="stat-label">표준편차</div>
-                    </div>
-                </div>
-            `;
+            let contentHTML = '';
             
-            // 시간별 분석 추가
-            if (analysis.timeAnalysis) {
+            // 1) 생산 현황 종합
+            if (analysis.productionSummary) {
+                const summary = analysis.productionSummary;
                 contentHTML += `
-                    <h3>📅 시간별 분석</h3>
+                    <h3>📊 1) 생산 현황 종합</h3>
                     <div class="stat-grid">
                         <div class="stat-card">
-                            <div class="stat-value">${analysis.timeAnalysis.bestDay.total?.toLocaleString() || 'N/A'}</div>
-                            <div class="stat-label">최고 일일 생산량<br><small>${analysis.timeAnalysis.bestDay.date || ''}</small></div>
+                            <div class="stat-value">${summary.totalProduction.toLocaleString()}</div>
+                            <div class="stat-label">총 생산수량</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-value">${analysis.timeAnalysis.worstDay.total?.toLocaleString() || 'N/A'}</div>
-                            <div class="stat-label">최저 일일 생산량<br><small>${analysis.timeAnalysis.worstDay.date || ''}</small></div>
+                            <div class="stat-value">${summary.equipmentCount}</div>
+                            <div class="stat-label">투입설비 대수</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${summary.workerCount}</div>
+                            <div class="stat-label">투입인원 수</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${summary.totalWorkTime.toLocaleString()}</div>
+                            <div class="stat-label">총 작업시간</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${summary.avgUPH}</div>
+                            <div class="stat-label">평균 UPH</div>
                         </div>
                     </div>
                 `;
             }
             
-            // 품질 분석 추가
-            if (analysis.qualityAnalysis) {
-                contentHTML += `<h3>🔍 품질 분석</h3>`;
-                Object.entries(analysis.qualityAnalysis).forEach(([column, stats]) => {
+            // 2) 설비별 분석
+            if (analysis.equipmentAnalysis) {
+                contentHTML += `<h3>🔧 2) 설비별 생산성 분석</h3>`;
+                contentHTML += `<div style="overflow-x: auto;">`;
+                contentHTML += `<table style="width: 100%; border-collapse: collapse; margin: 10px 0;">`;
+                contentHTML += `<thead><tr style="background: #f0f0f0;">
+                    <th style="padding: 8px; border: 1px solid #ddd;">설비명</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">생산성</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">가동율(%)</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">불량율(%)</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">소요인원</th>
+                </tr></thead><tbody>`;
+                
+                Object.entries(analysis.equipmentAnalysis).forEach(([equipment, stats]) => {
+                    contentHTML += `<tr>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${equipment}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${stats.productivity}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${stats.operationRate}%</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${stats.defectRate}%</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${stats.requiredWorkers}명</td>
+                    </tr>`;
+                });
+                contentHTML += `</tbody></table></div>`;
+            }
+            
+            // 3) 작업자별 분석
+            if (analysis.workerAnalysis) {
+                contentHTML += `<h3>👨‍🔧 3) 작업자별 생산성 분석</h3>`;
+                contentHTML += `<div style="overflow-x: auto;">`;
+                contentHTML += `<table style="width: 100%; border-collapse: collapse; margin: 10px 0;">`;
+                contentHTML += `<thead><tr style="background: #f0f0f0;">
+                    <th style="padding: 8px; border: 1px solid #ddd;">작업자</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">생산성</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">불량율(%)</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">설비 운영 수</th>
+                </tr></thead><tbody>`;
+                
+                Object.entries(analysis.workerAnalysis).forEach(([worker, stats]) => {
+                    contentHTML += `<tr>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${worker}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${stats.productivity}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${stats.defectRate}%</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${stats.equipmentCount}대</td>
+                    </tr>`;
+                });
+                contentHTML += `</tbody></table></div>`;
+            }
+            
+            // 4) 시간대별 분석
+            if (analysis.hourlyAnalysis) {
+                contentHTML += `<h3>🕐 4) 24시간 시간대별 분석</h3>`;
+                contentHTML += `<div class="stat-grid">`;
+                
+                Object.entries(analysis.hourlyAnalysis).sort(([a], [b]) => parseInt(a) - parseInt(b)).forEach(([hour, stats]) => {
                     contentHTML += `
-                        <div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 4px;">
-                            <strong>${column}:</strong> ${stats.unique.length}가지 유형, 총 ${stats.total}건
+                        <div class="stat-card">
+                            <div class="stat-value">${hour}시</div>
+                            <div class="stat-label">생산성: ${stats.productivity}<br>UPH: ${stats.uph}<br>불량율: ${stats.defectRate}%</div>
                         </div>
                     `;
                 });
+                contentHTML += `</div>`;
             }
             
-            // 생산성 지표 해석
+            // 5) 교대별 분석
+            if (analysis.shiftAnalysis) {
+                contentHTML += `<h3>⏰ 5) 교대별 생산성 분석</h3>`;
+                contentHTML += `<div class="stat-grid">`;
+                
+                Object.entries(analysis.shiftAnalysis).forEach(([shift, stats]) => {
+                    contentHTML += `
+                        <div class="stat-card">
+                            <div class="stat-value">${stats.totalProduction.toLocaleString()}</div>
+                            <div class="stat-label">${shift}<br>생산성: ${stats.productivity}</div>
+                        </div>
+                    `;
+                });
+                contentHTML += `</div>`;
+            }
+            
+            // 6) 규격별 분석
+            if (analysis.specAnalysis) {
+                contentHTML += `<h3>� 6) 규격별 생산 실적 분석</h3>`;
+                contentHTML += `<div style="overflow-x: auto;">`;
+                contentHTML += `<table style="width: 100%; border-collapse: collapse; margin: 10px 0;">`;
+                contentHTML += `<thead><tr style="background: #f0f0f0;">
+                    <th style="padding: 8px; border: 1px solid #ddd;">규격</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">총 생산량</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">생산성</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">평균 C/T</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">효율(%)</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">불량율(%)</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">적용 설비</th>
+                </tr></thead><tbody>`;
+                
+                Object.entries(analysis.specAnalysis).forEach(([spec, stats]) => {
+                    contentHTML += `<tr>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${spec}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${stats.totalProduction.toLocaleString()}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${stats.productivity}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${stats.avgCT}초</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${stats.efficiency}%</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${stats.defectRate}%</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${stats.equipmentList.join(', ')}</td>
+                    </tr>`;
+                });
+                contentHTML += `</tbody></table></div>`;
+            }
+            
+            // 7) 작업자별 설비 운영 실적
+            if (analysis.workerEquipmentAnalysis) {
+                contentHTML += `<h3>🔧👨‍🔧 7) 작업자별 설비 운영 실적</h3>`;
+                contentHTML += `<div style="overflow-x: auto;">`;
+                contentHTML += `<table style="width: 100%; border-collapse: collapse; margin: 10px 0;">`;
+                contentHTML += `<thead><tr style="background: #f0f0f0;">
+                    <th style="padding: 8px; border: 1px solid #ddd;">작업자</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">운영 설비 수</th>
+                    <th style="padding: 8px; border: 1px solid #ddd;">설비별 생산 실적</th>
+                </tr></thead><tbody>`;
+                
+                Object.entries(analysis.workerEquipmentAnalysis).forEach(([worker, stats]) => {
+                    const equipmentDetails = Object.entries(stats.equipmentDetails)
+                        .map(([eq, data]) => `${eq}(${data.totalProduction})`)
+                        .join(', ');
+                    
+                    contentHTML += `<tr>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${worker}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${stats.equipmentCount}대</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${equipmentDetails}</td>
+                    </tr>`;
+                });
+                contentHTML += `</tbody></table></div>`;
+            }
+            
+            // 종합 인사이트
             contentHTML += `
-                <h3>📊 생산성 지표 해석</h3>
+                <h3>� 종합 분석 인사이트</h3>
                 <div style="background: #e8f5e8; padding: 15px; border-radius: 6px; margin: 10px 0;">
-                    ${getProductivityInsights(analysis.productivity)}
+                    ${generateComprehensiveInsights(analysis)}
                 </div>
             `;
             
@@ -638,6 +1071,74 @@
             }
             
             return insights.join('<br>');
+        }
+        
+        function generateComprehensiveInsights(analysis) {
+            let insights = [];
+            
+            // 생산 현황 인사이트
+            if (analysis.productionSummary) {
+                const summary = analysis.productionSummary;
+                insights.push(`⚡ 총 생산수량: ${summary.totalProduction.toLocaleString()}개, 투입설비 ${summary.equipmentCount}대, 투입인원 ${summary.workerCount}명으로 운영`);
+                insights.push(`📈 평균 UPH: ${summary.avgUPH}, 총 작업시간: ${summary.totalWorkTime.toLocaleString()}시간`);
+            }
+            
+            // 설비 인사이트
+            if (analysis.equipmentAnalysis) {
+                const equipmentEntries = Object.entries(analysis.equipmentAnalysis);
+                const bestEquipment = equipmentEntries.reduce((max, [name, stats]) => 
+                    parseFloat(stats.productivity) > parseFloat(max.productivity) ? 
+                    {name, productivity: stats.productivity} : max, 
+                    {name: '', productivity: '0'}
+                );
+                insights.push(`🔧 최고 성능 설비: ${bestEquipment.name} (생산성: ${bestEquipment.productivity})`);
+            }
+            
+            // 작업자 인사이트
+            if (analysis.workerAnalysis) {
+                const workerEntries = Object.entries(analysis.workerAnalysis);
+                const bestWorker = workerEntries.reduce((max, [name, stats]) => 
+                    parseFloat(stats.productivity) > parseFloat(max.productivity) ? 
+                    {name, productivity: stats.productivity} : max, 
+                    {name: '', productivity: '0'}
+                );
+                insights.push(`👨‍🔧 최고 성과 작업자: ${bestWorker.name} (생산성: ${bestWorker.productivity})`);
+            }
+            
+            // 시간대 인사이트
+            if (analysis.hourlyAnalysis) {
+                const hourlyEntries = Object.entries(analysis.hourlyAnalysis);
+                const peakHour = hourlyEntries.reduce((max, [hour, stats]) => 
+                    parseFloat(stats.productivity) > parseFloat(max.productivity) ? 
+                    {hour, productivity: stats.productivity} : max, 
+                    {hour: '', productivity: '0'}
+                );
+                insights.push(`🕐 최고 생산성 시간대: ${peakHour.hour}시 (생산성: ${peakHour.productivity})`);
+            }
+            
+            // 교대 인사이트
+            if (analysis.shiftAnalysis) {
+                const shiftEntries = Object.entries(analysis.shiftAnalysis);
+                const bestShift = shiftEntries.reduce((max, [shift, stats]) => 
+                    stats.totalProduction > max.production ? 
+                    {shift, production: stats.totalProduction} : max, 
+                    {shift: '', production: 0}
+                );
+                insights.push(`⏰ 최고 생산 교대: ${bestShift.shift} (총 생산량: ${bestShift.production.toLocaleString()}개)`);
+            }
+            
+            // 규격 인사이트
+            if (analysis.specAnalysis) {
+                const specEntries = Object.entries(analysis.specAnalysis);
+                const topSpec = specEntries.reduce((max, [spec, stats]) => 
+                    stats.totalProduction > max.production ? 
+                    {spec, production: stats.totalProduction} : max, 
+                    {spec: '', production: 0}
+                );
+                insights.push(`📏 주력 규격: ${topSpec.spec} (총 생산량: ${topSpec.production.toLocaleString()}개)`);
+            }
+            
+            return insights.join('<br>• ');
         }
         
         function closeModal() {
