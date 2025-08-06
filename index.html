@@ -31,6 +31,25 @@
             border-radius: 8px;
             text-align: center;
         }
+        .process-item {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .process-name {
+            font-weight: bold;
+            color: #333;
+        }
+        .process-quantity {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2e7d32;
+        }
         .total-sum {
             font-size: 24px;
             font-weight: bold;
@@ -86,28 +105,24 @@
 </head>
 <body>
     <div class="container">
-        <h1>엑셀 데이터 분석 - 생산수량 합계</h1>
+        <h1>엑셀 데이터 분석 - 공정명별 생산수량 합계</h1>
         
         <div id="loading-indicator" style="display: none; text-align: center; margin: 20px;">
             <p>📊 엑셀 파일을 로딩 중입니다...</p>
         </div>
         
-        <button id="loadBtn" class="btn">data_erp.xlsx 파일 로드</button>
+        <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
+        <button id="loadBtn" class="btn">엑셀 파일 선택하기</button>
         
         <div id="result-container" style="display: none;">
             <div class="result-box">
-                <h2>생산수량 총 합계</h2>
-                <div id="total-sum" class="total-sum">계산 중...</div>
+                <h2>공정명별 생산수량 합계</h2>
+                <div id="process-results"></div>
             </div>
             
             <div id="data-info" class="data-info">
                 <p><strong>데이터 정보:</strong></p>
                 <div id="info-details"></div>
-            </div>
-            
-            <div id="data-table-container">
-                <h3>데이터 미리보기 (상위 10개 행)</h3>
-                <table id="data-table"></table>
             </div>
         </div>
     </div>
@@ -115,9 +130,20 @@
     <script>
         let excelData = [];
         
-        document.getElementById('loadBtn').addEventListener('click', loadExcelFile);
+        document.getElementById('loadBtn').addEventListener('click', () => {
+            document.getElementById('fileInput').click();
+        });
         
-        async function loadExcelFile() {
+        document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+        
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            loadExcelFile(file);
+        }
+        
+        async function loadExcelFile(file) {
             const loadBtn = document.getElementById('loadBtn');
             const loadingIndicator = document.getElementById('loading-indicator');
             
@@ -127,12 +153,7 @@
                 loadBtn.textContent = '로딩 중...';
                 loadingIndicator.style.display = 'block';
                 
-                const response = await fetch('data_erp.xlsx');
-                if (!response.ok) {
-                    throw new Error(`파일을 찾을 수 없습니다. (상태: ${response.status})`);
-                }
-                
-                const arrayBuffer = await response.arrayBuffer();
+                const arrayBuffer = await file.arrayBuffer();
                 const workbook = XLSX.read(arrayBuffer, { type: 'array' });
                 
                 // 첫 번째 시트 읽기
@@ -154,7 +175,7 @@
             } finally {
                 // 로딩 상태 해제
                 loadBtn.disabled = false;
-                loadBtn.textContent = 'data_erp.xlsx 파일 로드';
+                loadBtn.textContent = '엑셀 파일 선택하기';
                 loadingIndicator.style.display = 'none';
             }
         }
@@ -165,10 +186,17 @@
                 return;
             }
             
-            // 생산수량 컬럼 찾기 (더 유연하게)
             const headers = Object.keys(excelData[0]);
             console.log('헤더:', headers);
             
+            // 공정명 컬럼 찾기
+            const processColumn = headers.find(header => 
+                header.includes('공정명') || 
+                header === '공정명' ||
+                header.toLowerCase().includes('process')
+            );
+            
+            // 생산수량 컬럼 찾기
             const productionColumn = headers.find(header => 
                 header.includes('생산수량') || 
                 header === '생산수량' ||
@@ -176,104 +204,105 @@
                 header.toLowerCase().includes('quantity')
             );
             
+            if (!processColumn) {
+                alert(`공정명 컬럼을 찾을 수 없습니다.\n사용 가능한 컬럼: ${headers.join(', ')}`);
+                console.log('사용 가능한 컬럼들:', headers);
+                return;
+            }
+            
             if (!productionColumn) {
                 alert(`생산수량 컬럼을 찾을 수 없습니다.\n사용 가능한 컬럼: ${headers.join(', ')}`);
                 console.log('사용 가능한 컬럼들:', headers);
                 return;
             }
             
-            // 생산수량 총 합계 계산
-            let totalSum = 0;
-            let validRows = 0;
-            let invalidRows = 0;
+            // 공정명별 생산수량 집계
+            const processResults = {};
+            let totalValidRows = 0;
+            let totalInvalidRows = 0;
+            let grandTotal = 0;
             
             excelData.forEach((row, index) => {
-                const value = row[productionColumn];
-                if (value !== null && value !== undefined && value !== '') {
-                    const numValue = parseFloat(value);
+                const processName = row[processColumn];
+                const productionValue = row[productionColumn];
+                
+                if (processName && productionValue !== null && productionValue !== undefined && productionValue !== '') {
+                    const numValue = parseFloat(productionValue);
                     if (!isNaN(numValue)) {
-                        totalSum += numValue;
-                        validRows++;
+                        if (!processResults[processName]) {
+                            processResults[processName] = {
+                                total: 0,
+                                count: 0
+                            };
+                        }
+                        processResults[processName].total += numValue;
+                        processResults[processName].count += 1;
+                        totalValidRows++;
+                        grandTotal += numValue;
                     } else {
-                        invalidRows++;
-                        console.warn(`행 ${index + 2}: 유효하지 않은 숫자 값 "${value}"`);
+                        totalInvalidRows++;
+                        console.warn(`행 ${index + 2}: 유효하지 않은 숫자 값 "${productionValue}"`);
                     }
                 } else {
-                    invalidRows++;
+                    totalInvalidRows++;
                 }
             });
             
             // 결과 표시
-            displayResults(totalSum, validRows, invalidRows, productionColumn);
+            displayProcessResults(processResults, processColumn, productionColumn, totalValidRows, totalInvalidRows, grandTotal);
         }
         
-        function displayResults(totalSum, validRows, invalidRows, columnName) {
+        function displayProcessResults(processResults, processColumnName, productionColumnName, totalValidRows, totalInvalidRows, grandTotal) {
             // 결과 컨테이너 표시
             document.getElementById('result-container').style.display = 'block';
             
-            // 총 합계 표시
-            document.getElementById('total-sum').textContent = 
-                totalSum.toLocaleString() + ' (단위)';
+            // 공정별 결과 표시
+            const processResultsDiv = document.getElementById('process-results');
+            let resultsHTML = '';
+            
+            // 공정명별 결과를 총합계 기준으로 정렬
+            const sortedProcesses = Object.entries(processResults)
+                .sort(([,a], [,b]) => b.total - a.total);
+            
+            sortedProcesses.forEach(([processName, data]) => {
+                const percentage = ((data.total / grandTotal) * 100).toFixed(1);
+                resultsHTML += `
+                    <div class="process-item">
+                        <div class="process-name">${processName}</div>
+                        <div class="process-quantity">
+                            ${data.total.toLocaleString()} (${percentage}%)
+                            <br><small>${data.count}건</small>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            // 전체 합계 추가
+            resultsHTML += `
+                <div class="process-item" style="background: #e8f5e8; border: 2px solid #4CAF50; font-weight: bold;">
+                    <div class="process-name">📊 전체 합계</div>
+                    <div class="process-quantity" style="font-size: 20px;">
+                        ${grandTotal.toLocaleString()}
+                    </div>
+                </div>
+            `;
+            
+            processResultsDiv.innerHTML = resultsHTML;
             
             // 데이터 정보 표시
             const infoDetails = document.getElementById('info-details');
             infoDetails.innerHTML = `
                 <p>• 전체 행 수: ${excelData.length.toLocaleString()}개</p>
-                <p>• 유효한 생산수량 데이터: ${validRows.toLocaleString()}개</p>
-                <p>• 무효한 데이터: ${invalidRows.toLocaleString()}개</p>
-                <p>• 생산수량 컬럼명: "${columnName}"</p>
-                <p>• 평균 생산수량: ${validRows > 0 ? (totalSum / validRows).toFixed(2) : 0}</p>
-                <p>• 최대값: ${validRows > 0 ? getMaxValue(columnName).toLocaleString() : 0}</p>
-                <p>• 최소값: ${validRows > 0 ? getMinValue(columnName).toLocaleString() : 0}</p>
+                <p>• 유효한 데이터: ${totalValidRows.toLocaleString()}개</p>
+                <p>• 무효한 데이터: ${totalInvalidRows.toLocaleString()}개</p>
+                <p>• 공정명 컬럼: "${processColumnName}"</p>
+                <p>• 생산수량 컬럼: "${productionColumnName}"</p>
+                <p>• 공정 종류: ${Object.keys(processResults).length}개</p>
+                <p>• 전체 생산수량: ${grandTotal.toLocaleString()}</p>
+                <p>• 평균 생산수량: ${totalValidRows > 0 ? (grandTotal / totalValidRows).toFixed(2) : 0}</p>
             `;
-            
-            // 데이터 테이블 표시 (상위 10개 행)
-            displayDataTable();
         }
         
-        function displayDataTable() {
-            const table = document.getElementById('data-table');
-            
-            if (excelData.length === 0) return;
-            
-            // 헤더 생성
-            const headers = Object.keys(excelData[0]);
-            let tableHTML = '<thead><tr>';
-            headers.forEach(header => {
-                tableHTML += `<th>${header}</th>`;
-            });
-            tableHTML += '</tr></thead><tbody>';
-            
-            // 상위 10개 행 표시
-            const previewData = excelData.slice(0, 10);
-            previewData.forEach(row => {
-                tableHTML += '<tr>';
-                headers.forEach(header => {
-                    const value = row[header] || '';
-                    tableHTML += `<td>${value}</td>`;
-                });
-                tableHTML += '</tr>';
-            });
-            
-            tableHTML += '</tbody>';
-            table.innerHTML = tableHTML;
-        }
-        
-        // 최대값 구하기
-        function getMaxValue(columnName) {
-            const values = excelData
-                .map(row => parseFloat(row[columnName]))
-                .filter(val => !isNaN(val));
-            return values.length > 0 ? Math.max(...values) : 0;
-        }
-        
-        // 최소값 구하기
-        function getMinValue(columnName) {
-            const values = excelData
-                .map(row => parseFloat(row[columnName]))
-                .filter(val => !isNaN(val));
-            return values.length > 0 ? Math.min(...values) : 0;
-        }
     </script>
 </body>
 </html>
