@@ -1160,6 +1160,12 @@
                             <div class="spreadsheet-container">
                                 ${generateProcessSpreadsheet(data.data, headers)}
                             </div>
+                            
+                            <!-- 🔥 공정별 상세 분석 추가 -->
+                            <div style="margin-top: 25px;">
+                                <h4 style="color: #1f2937; margin-bottom: 15px; font-size: 16px; font-weight: 700;">📊 ${displayName} 상세 데이터 분석</h4>
+                                ${generateProcessDetailedAnalysis(data.data, headers, processName)}
+                            </div>
                         </div>
                         
                         <div class="analysis-grid">
@@ -1254,6 +1260,248 @@
             });
             
             return analysis;
+        }
+
+        // 🔥 공정별 상세 데이터 분석 함수
+        function generateProcessDetailedAnalysis(processData, headers, processName) {
+            console.log(`🔍 ${processName} 공정 상세 분석 시작 (${processData.length}건 데이터)`);
+            
+            const productionColumn = findColumn(headers, ['생산수량', 'production', 'quantity', '수량']);
+            const equipmentColumn = findColumn(headers, ['설비', 'equipment', 'machine']);
+            const workerColumn = findColumn(headers, ['작업자', 'worker', 'operator']);
+            const specColumn = findColumn(headers, ['규격', 'spec', 'model']);
+            const ctColumn = findColumn(headers, ['CT', 'C/T', 'cycletime']);
+            const defectColumn = findColumn(headers, ['불량', 'defect']);
+            const efficiencyColumn = findColumn(headers, ['효율', 'efficiency']);
+            const timeColumn = findColumn(headers, ['시간', 'time', '작업시간']);
+            const itemColumn = findColumn(headers, ['품목', 'item', 'product', '제품']);
+            
+            // 공정별 통계 계산
+            let stats = {
+                총생산수량: 0,
+                양수생산: 0,
+                음수생산: 0,
+                영생산: 0,
+                총작업시간: 0,
+                평균CT: 0,
+                평균효율: 0,
+                총불량: 0,
+                설비현황: {},
+                작업자현황: {},
+                규격현황: {},
+                품목현황: {},
+                일별현황: {},
+                생산성분포: []
+            };
+            
+            // 데이터 분석
+            processData.forEach((row, index) => {
+                const production = parseFloat(row[productionColumn]) || 0;
+                const equipment = row[equipmentColumn] || 'N/A';
+                const worker = row[workerColumn] || 'N/A';
+                const spec = row[specColumn] || 'N/A';
+                const ct = parseFloat(row[ctColumn]) || 0;
+                const defect = parseFloat(row[defectColumn]) || 0;
+                const efficiency = parseFloat(row[efficiencyColumn]) || 0;
+                const time = parseFloat(row[timeColumn]) || 0;
+                const item = row[itemColumn] || 'N/A';
+                
+                // 기본 통계
+                stats.총생산수량 += production;
+                if (production > 0) stats.양수생산 += production;
+                else if (production < 0) stats.음수생산 += production;
+                else stats.영생산++;
+                
+                stats.총작업시간 += time;
+                stats.평균CT += ct;
+                stats.평균효율 += efficiency;
+                stats.총불량 += defect;
+                
+                // 설비별 분석
+                if (equipment !== 'N/A' && equipment !== '0') {
+                    if (!stats.설비현황[equipment]) {
+                        stats.설비현황[equipment] = { 생산량: 0, 작업건수: 0, 효율합계: 0, 불량합계: 0 };
+                    }
+                    stats.설비현황[equipment].생산량 += production;
+                    stats.설비현황[equipment].작업건수++;
+                    stats.설비현황[equipment].효율합계 += efficiency;
+                    stats.설비현황[equipment].불량합계 += defect;
+                }
+                
+                // 작업자별 분석
+                if (worker !== 'N/A' && worker !== '0') {
+                    if (!stats.작업자현황[worker]) {
+                        stats.작업자현황[worker] = { 생산량: 0, 작업건수: 0, 효율합계: 0 };
+                    }
+                    stats.작업자현황[worker].생산량 += production;
+                    stats.작업자현황[worker].작업건수++;
+                    stats.작업자현황[worker].효율합계 += efficiency;
+                }
+                
+                // 규격별 분석
+                if (spec !== 'N/A' && spec !== '0') {
+                    if (!stats.규격현황[spec]) {
+                        stats.규격현황[spec] = { 생산량: 0, 작업건수: 0, CT합계: 0 };
+                    }
+                    stats.규격현황[spec].생산량 += production;
+                    stats.규격현황[spec].작업건수++;
+                    stats.규격현황[spec].CT합계 += ct;
+                }
+                
+                // 품목별 분석
+                if (item !== 'N/A' && item !== '0') {
+                    if (!stats.품목현황[item]) {
+                        stats.품목현황[item] = { 생산량: 0, 작업건수: 0 };
+                    }
+                    stats.품목현황[item].생산량 += production;
+                    stats.품목현황[item].작업건수++;
+                }
+                
+                // 생산성 분포 (생산량 구간별)
+                let range = '0';
+                if (production > 0 && production <= 100) range = '1-100';
+                else if (production <= 500) range = '101-500';
+                else if (production <= 1000) range = '501-1000';
+                else if (production > 1000) range = '1000+';
+                
+                const existingRange = stats.생산성분포.find(r => r.구간 === range);
+                if (existingRange) {
+                    existingRange.건수++;
+                    existingRange.생산량 += production;
+                } else {
+                    stats.생산성분포.push({ 구간: range, 건수: 1, 생산량: production });
+                }
+            });
+            
+            // 평균값 계산
+            const dataCount = processData.length;
+            stats.평균CT = dataCount > 0 ? (stats.평균CT / dataCount).toFixed(2) : 0;
+            stats.평균효율 = dataCount > 0 ? (stats.평균효율 / dataCount).toFixed(1) : 0;
+            
+            console.log(`📊 ${processName} 분석 완료:`, stats);
+            
+            return `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                    <!-- 생산 요약 -->
+                    <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); padding: 20px; border-radius: 12px; border: 1px solid #0284c7;">
+                        <h5 style="color: #0c4a6e; margin-bottom: 15px; font-size: 14px; font-weight: 700;">📈 생산 요약</h5>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px;">
+                            <div><strong>총 생산:</strong> ${stats.총생산수량.toLocaleString()}</div>
+                            <div><strong>양수 생산:</strong> ${stats.양수생산.toLocaleString()}</div>
+                            <div><strong>음수 생산:</strong> ${stats.음수생산.toLocaleString()}</div>
+                            <div><strong>영 생산:</strong> ${stats.영생산}건</div>
+                            <div><strong>평균 효율:</strong> ${stats.평균효율}%</div>
+                            <div><strong>평균 CT:</strong> ${stats.평균CT}초</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 설비 분석 -->
+                    <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); padding: 20px; border-radius: 12px; border: 1px solid #16a34a;">
+                        <h5 style="color: #14532d; margin-bottom: 15px; font-size: 14px; font-weight: 700;">🔧 설비 분석 (${Object.keys(stats.설비현황).length}대)</h5>
+                        <div style="max-height: 120px; overflow-y: auto; font-size: 12px;">
+                            ${Object.entries(stats.설비현황).map(([equipment, data]) => `
+                                <div style="margin-bottom: 8px; padding: 8px; background: white; border-radius: 6px; border: 1px solid #bbf7d0;">
+                                    <strong>${equipment}:</strong> ${data.생산량.toLocaleString()} (${data.작업건수}건, 평균효율: ${(data.효율합계/data.작업건수).toFixed(1)}%)
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <!-- 작업자 분석 -->
+                    <div style="background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%); padding: 20px; border-radius: 12px; border: 1px solid #d97706;">
+                        <h5 style="color: #92400e; margin-bottom: 15px; font-size: 14px; font-weight: 700;">👨‍🔧 작업자 분석 (${Object.keys(stats.작업자현황).length}명)</h5>
+                        <div style="max-height: 120px; overflow-y: auto; font-size: 12px;">
+                            ${Object.entries(stats.작업자현황).map(([worker, data]) => `
+                                <div style="margin-bottom: 8px; padding: 8px; background: white; border-radius: 6px; border: 1px solid #fed7aa;">
+                                    <strong>${worker}:</strong> ${data.생산량.toLocaleString()} (${data.작업건수}건, 평균효율: ${(data.효율합계/data.작업건수).toFixed(1)}%)
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <!-- 규격 분석 -->
+                    <div style="background: linear-gradient(135deg, #fdf4ff 0%, #f3e8ff 100%); padding: 20px; border-radius: 12px; border: 1px solid #9333ea;">
+                        <h5 style="color: #581c87; margin-bottom: 15px; font-size: 14px; font-weight: 700;">📏 규격 분석 (${Object.keys(stats.규격현황).length}종)</h5>
+                        <div style="max-height: 120px; overflow-y: auto; font-size: 12px;">
+                            ${Object.entries(stats.규격현황).map(([spec, data]) => `
+                                <div style="margin-bottom: 8px; padding: 8px; background: white; border-radius: 6px; border: 1px solid #ddd6fe;">
+                                    <strong>${spec}:</strong> ${data.생산량.toLocaleString()} (${data.작업건수}건, 평균CT: ${(data.CT합계/data.작업건수).toFixed(2)}초)
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <!-- 생산성 분포 -->
+                    <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); padding: 20px; border-radius: 12px; border: 1px solid #dc2626;">
+                        <h5 style="color: #991b1b; margin-bottom: 15px; font-size: 14px; font-weight: 700;">📊 생산량 구간별 분포</h5>
+                        <div style="font-size: 12px;">
+                            ${stats.생산성분포.sort((a,b) => a.생산량 - b.생산량).map(range => `
+                                <div style="margin-bottom: 6px; padding: 6px; background: white; border-radius: 4px; border: 1px solid #fecaca;">
+                                    <strong>${range.구간}:</strong> ${range.건수}건 (${range.생산량.toLocaleString()})
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <!-- 품목 분석 -->
+                    <div style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); padding: 20px; border-radius: 12px; border: 1px solid #64748b;">
+                        <h5 style="color: #334155; margin-bottom: 15px; font-size: 14px; font-weight: 700;">📦 품목 분석 (${Object.keys(stats.품목현황).length}종)</h5>
+                        <div style="max-height: 120px; overflow-y: auto; font-size: 12px;">
+                            ${Object.entries(stats.품목현황).slice(0, 10).map(([item, data]) => `
+                                <div style="margin-bottom: 6px; padding: 6px; background: white; border-radius: 4px; border: 1px solid #cbd5e1;">
+                                    <strong>${item.length > 15 ? item.substring(0, 15) + '...' : item}:</strong> ${data.생산량.toLocaleString()} (${data.작업건수}건)
+                                </div>
+                            `).join('')}
+                            ${Object.keys(stats.품목현황).length > 10 ? `<div style="text-align: center; color: #64748b; font-size: 11px; margin-top: 10px;">... 외 ${Object.keys(stats.품목현황).length - 10}개 품목</div>` : ''}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 상세 통계 테이블 -->
+                <div style="margin-top: 25px;">
+                    <h5 style="color: #1f2937; margin-bottom: 15px; font-size: 14px; font-weight: 700;">📋 ${processName} 상위 성과 분석</h5>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                        <!-- 상위 설비 -->
+                        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px;">
+                            <h6 style="color: #374151; margin-bottom: 10px; font-size: 13px; font-weight: 600;">🥇 상위 생산 설비</h6>
+                            ${Object.entries(stats.설비현황)
+                                .sort(([,a], [,b]) => b.생산량 - a.생산량)
+                                .slice(0, 3)
+                                .map(([equipment, data], index) => `
+                                    <div style="font-size: 12px; margin-bottom: 5px; color: #6b7280;">
+                                        ${index + 1}. ${equipment}: ${data.생산량.toLocaleString()}
+                                    </div>
+                                `).join('')}
+                        </div>
+                        
+                        <!-- 상위 작업자 -->
+                        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px;">
+                            <h6 style="color: #374151; margin-bottom: 10px; font-size: 13px; font-weight: 600;">🥇 상위 생산 작업자</h6>
+                            ${Object.entries(stats.작업자현황)
+                                .sort(([,a], [,b]) => b.생산량 - a.생산량)
+                                .slice(0, 3)
+                                .map(([worker, data], index) => `
+                                    <div style="font-size: 12px; margin-bottom: 5px; color: #6b7280;">
+                                        ${index + 1}. ${worker}: ${data.생산량.toLocaleString()}
+                                    </div>
+                                `).join('')}
+                        </div>
+                        
+                        <!-- 상위 규격 -->
+                        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px;">
+                            <h6 style="color: #374151; margin-bottom: 10px; font-size: 13px; font-weight: 600;">🥇 상위 생산 규격</h6>
+                            ${Object.entries(stats.규격현황)
+                                .sort(([,a], [,b]) => b.생산량 - a.생산량)
+                                .slice(0, 3)
+                                .map(([spec, data], index) => `
+                                    <div style="font-size: 12px; margin-bottom: 5px; color: #6b7280;">
+                                        ${index + 1}. ${spec}: ${data.생산량.toLocaleString()}
+                                    </div>
+                                `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
         // 공정별 스프레드시트 생성
