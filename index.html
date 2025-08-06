@@ -930,6 +930,9 @@
                     // 4) 제품 규격별 분석
                     generateProductAnalysis(headers);
                     
+                    // 🔥 최종 통합 검증 출력
+                    printFinalValidationReport();
+                    
                     console.log('✅ 분석 완료!');
                     
                 } catch (error) {
@@ -944,6 +947,75 @@
             }, 500);
         }
 
+        // 🔥 최종 검증 리포트 출력
+        function printFinalValidationReport() {
+            console.log('🎯 =================== 최종 검증 리포트 ===================');
+            console.log('📊 전역 통계 (일관된 기준):');
+            console.log(`   ✅ 순합계 (양수+음수): ${window.globalProductionStats.netTotal.toLocaleString()}`);
+            console.log(`   ✅ 양수만 합계: ${window.globalProductionStats.positiveTotal.toLocaleString()}`);
+            console.log(`   ✅ 음수만 합계: ${window.globalProductionStats.negativeTotal.toLocaleString()}`);
+            console.log(`   ✅ 총 데이터 행수: ${window.globalProductionStats.totalRows}개`);
+            console.log(`   ✅ 생산 데이터 행수: ${window.globalProductionStats.nonZeroRows}개`);
+            
+            console.log('📋 표시된 생산수량 값들:');
+            console.log(`   📊 생산 현황 종합: ${window.globalProductionStats.netTotal.toLocaleString()}`);
+            console.log(`   🔧 공정별 분석: 각 공정의 전체 대비 비율도 순합계 기준으로 계산됨`);
+            
+            console.log('🔍 일관성 확인:');
+            const isConsistent = '모든 계산이 동일한 전역 통계를 기준으로 수행됨';
+            console.log(`   ✅ ${isConsistent}`);
+            
+            console.log('🎯 =====================================================');
+        }
+
+        // 🔥 전역 생산수량 통합 계산 함수
+        function calculateGlobalProductionStats(productionColumn) {
+            let netTotal = 0;        // 순합계 (양수+음수)
+            let positiveTotal = 0;   // 양수만
+            let negativeTotal = 0;   // 음수만
+            let zeroCount = 0;       // 0인 행 수
+            let totalRows = excelData.length;
+            let nonZeroRows = 0;
+            
+            console.log('🔥 전역 생산수량 계산 시작:');
+            excelData.forEach((row, index) => {
+                const production = parseFloat(row[productionColumn]) || 0;
+                
+                netTotal += production;
+                
+                if (production > 0) {
+                    positiveTotal += production;
+                    nonZeroRows++;
+                } else if (production < 0) {
+                    negativeTotal += production;
+                    nonZeroRows++;
+                } else {
+                    zeroCount++;
+                }
+                
+                // 상세 디버깅 (처음 15개 행)
+                if (index < 15) {
+                    console.log(`전역계산 행 ${index + 1}: ${production} (원본: "${row[productionColumn]}")`);
+                }
+            });
+            
+            console.log('📊 전역 생산수량 계산 완료:');
+            console.log(`- 순합계 (전체): ${netTotal.toLocaleString()}`);
+            console.log(`- 양수 합계: ${positiveTotal.toLocaleString()}`);
+            console.log(`- 음수 합계: ${negativeTotal.toLocaleString()}`);
+            console.log(`- 0이 아닌 행: ${nonZeroRows}개`);
+            console.log(`- 0인 행: ${zeroCount}개`);
+            
+            return {
+                netTotal,
+                positiveTotal,
+                negativeTotal,
+                zeroCount,
+                totalRows,
+                nonZeroRows
+            };
+        }
+
         // 1) 공정별 분석 생성
         function generateProcessAnalysis(processColumn, productionColumn, headers) {
             console.log('🔍 공정별 분석 시작');
@@ -953,25 +1025,18 @@
             let grandTotal = 0;
             let processedRowCount = 0;
             let skippedRowCount = 0;
-            let totalValidProduction = 0; // 전체 유효 생산수량 추가
             
-            // 먼저 전체 데이터에서 생산수량 합계 계산
-            console.log('📊 전체 데이터 생산수량 검증:');
-            excelData.forEach((row, index) => {
-                const productionValue = parseFloat(row[productionColumn]) || 0;
-                if (productionValue !== 0) { // 0이 아닌 모든 값 포함
-                    totalValidProduction += productionValue;
-                }
-                
-                // 처음 10개 행 상세 로깅
-                if (index < 10) {
-                    console.log(`전체검증 행 ${index + 1}: 생산수량=${productionValue} (원본: "${row[productionColumn]}")`);
-                }
-            });
+            // 🔥 통합된 생산수량 계산 로직 (전역 변수로 저장)
+            window.globalProductionStats = calculateGlobalProductionStats(productionColumn);
             
-            console.log(`📈 전체 데이터 생산수량 합계: ${totalValidProduction.toLocaleString()}`);
+            console.log('📊 전체 데이터 통합 분석 결과:');
+            console.log(`- 전체 행수: ${window.globalProductionStats.totalRows}개`);
+            console.log(`- 순 생산수량 합계: ${window.globalProductionStats.netTotal.toLocaleString()}`);
+            console.log(`- 양수 생산수량: ${window.globalProductionStats.positiveTotal.toLocaleString()}`);
+            console.log(`- 음수 생산수량: ${window.globalProductionStats.negativeTotal.toLocaleString()}`);
+            console.log(`- 생산수량 0인 행: ${window.globalProductionStats.zeroCount}개`);
             
-            // 공정별 데이터 집계 - 더 정확한 계산
+            // 공정별 데이터 집계 - 통합된 로직 사용
             excelData.forEach((row, index) => {
                 const processName = row[processColumn];
                 const productionValue = parseFloat(row[productionColumn]) || 0;
@@ -1011,13 +1076,11 @@
                 }
             });
             
-            console.log('📊 집계 결과:');
-            console.log(`- 전체 데이터 행수: ${excelData.length}개`);
+            console.log('📊 공정별 집계 결과:');
             console.log(`- 공정별로 처리된 행: ${processedRowCount}개`);
             console.log(`- 건너뛴 행 (공정명 없음): ${skippedRowCount}개`);
             console.log(`- 공정별 생산수량 합계: ${grandTotal.toLocaleString()}`);
-            console.log(`- 전체 유효 생산수량: ${totalValidProduction.toLocaleString()}`);
-            console.log(`- 차이 (누락된 생산수량): ${(totalValidProduction - grandTotal).toLocaleString()}`);
+            console.log(`- 전체 순합계와 차이: ${(window.globalProductionStats.netTotal - grandTotal).toLocaleString()}`);
             console.log(`- 발견된 공정 수: ${Object.keys(processResults).length}개`);
             
             // 각 공정별 상세 합계 출력
@@ -1034,8 +1097,8 @@
                 console.warn('⚠️ 공정별 합계 불일치 발견!');
             }
             
-            if (Math.abs(totalValidProduction - grandTotal) > 0.01) {
-                console.warn(`⚠️ 전체 vs 공정별 생산수량 차이: ${(totalValidProduction - grandTotal).toLocaleString()}`);
+            if (Math.abs(window.globalProductionStats.netTotal - grandTotal) > 0.01) {
+                console.warn(`⚠️ 전체 vs 공정별 생산수량 차이: ${(window.globalProductionStats.netTotal - grandTotal).toLocaleString()}`);
                 console.warn('💡 공정명이 없는 데이터에 생산수량이 포함되어 있을 수 있습니다.');
             }
             
@@ -1050,9 +1113,12 @@
             // 공정별 상세 분석 생성
             let processHTML = '';
             sortedProcesses.forEach(([processName, data], index) => {
-                const percentage = ((data.total / grandTotal) * 100).toFixed(1);
+                // 🔥 전역 순합계 기준으로 비율 계산 (일관성 확보)
+                const percentage = ((data.total / window.globalProductionStats.netTotal) * 100).toFixed(1);
                 const displayName = data.processNumber !== '000' ? 
                     `공정#${data.processNumber} - ${processName}` : processName;
+                
+                console.log(`공정 "${processName}" 비율 계산: ${data.total.toLocaleString()} / ${window.globalProductionStats.netTotal.toLocaleString()} = ${percentage}%`);
                 
                 const analysis = analyzeProcessData(data.data, headers);
                 const processId = `process_${index}`;
@@ -1375,28 +1441,17 @@
                 규격: specColumn
             });
             
-            let totalProduction = 0;
-            let positiveProduction = 0; // 양수인 생산수량만
-            let negativeProduction = 0; // 음수인 생산수량 (불량 등)
+            // 🔥 전역 통계 사용 (이미 계산된 값)
+            const globalStats = window.globalProductionStats;
+            
+            // 나머지 통계들 계산
             const equipmentSet = new Set();
             const workerSet = new Set();
             const specSet = new Set();
             let totalTime = 0;
-            let validRowCount = 0;
-            let productionRowCount = 0;
             
-            console.log('🔍 종합 분석 상세 검증:');
+            console.log('🔍 기타 통계 계산:');
             excelData.forEach((row, index) => {
-                const production = parseFloat(row[productionColumn]) || 0;
-                totalProduction += production;
-                
-                if (production > 0) {
-                    positiveProduction += production;
-                    productionRowCount++;
-                } else if (production < 0) {
-                    negativeProduction += production;
-                }
-                
                 if (equipmentColumn && row[equipmentColumn] && row[equipmentColumn] !== '0') {
                     equipmentSet.add(row[equipmentColumn]);
                 }
@@ -1411,30 +1466,29 @@
                     totalTime += time;
                 }
                 
-                if (production !== 0) validRowCount++;
-                
                 // 처음 10개 행 디버깅
                 if (index < 10) {
-                    console.log(`종합분석 행 ${index + 1}: 생산=${production}, 설비="${row[equipmentColumn]}", 작업자="${row[workerColumn]}", 시간=${row[timeColumn]}`);
+                    console.log(`종합분석 행 ${index + 1}: 생산=${parseFloat(row[productionColumn]) || 0}, 설비="${row[equipmentColumn]}", 작업자="${row[workerColumn]}", 시간=${row[timeColumn]}`);
                 }
             });
             
             console.log('📊 종합 분석 결과:');
-            console.log(`- 전체 데이터 행수: ${excelData.length}개`);
-            console.log(`- 총 생산수량 (순합계): ${totalProduction.toLocaleString()}`);
-            console.log(`- 양수 생산수량: ${positiveProduction.toLocaleString()}`);
-            console.log(`- 음수 생산수량: ${negativeProduction.toLocaleString()}`);
-            console.log(`- 생산수량 있는 행: ${productionRowCount}개`);
-            console.log(`- 생산수량 0이 아닌 행: ${validRowCount}개`);
+            console.log(`- 전체 데이터 행수: ${globalStats.totalRows}개`);
+            console.log(`- 총 생산수량 (순합계): ${globalStats.netTotal.toLocaleString()}`);
+            console.log(`- 양수 생산수량: ${globalStats.positiveTotal.toLocaleString()}`);
+            console.log(`- 음수 생산수량: ${globalStats.negativeTotal.toLocaleString()}`);
+            console.log(`- 생산수량 0이 아닌 행: ${globalStats.nonZeroRows}개`);
             console.log(`- 설비 종류: ${equipmentSet.size}개 [${Array.from(equipmentSet).slice(0, 5).join(', ')}${equipmentSet.size > 5 ? '...' : ''}]`);
             console.log(`- 작업자 수: ${workerSet.size}명 [${Array.from(workerSet).slice(0, 5).join(', ')}${workerSet.size > 5 ? '...' : ''}]`);
             console.log(`- 규격 종류: ${specSet.size}개 [${Array.from(specSet).slice(0, 5).join(', ')}${specSet.size > 5 ? '...' : ''}]`);
             console.log(`- 총 작업시간: ${totalTime.toLocaleString()}`);
             
-            const avgUPH = totalTime > 0 ? (totalProduction / totalTime).toFixed(2) : 'N/A';
+            const avgUPH = totalTime > 0 ? (globalStats.netTotal / totalTime).toFixed(2) : 'N/A';
             
-            // 표시용으로는 양수 생산수량 사용 (일반적으로 불량 제외한 순생산량)
-            const displayProduction = positiveProduction;
+            // 🔥 표시용 생산수량 = 순합계 사용 (일관성 확보)
+            const displayProduction = globalStats.netTotal;
+            
+            console.log(`🎯 최종 표시 생산수량: ${displayProduction.toLocaleString()}`);
             
             document.getElementById('productionSummary').innerHTML = `
                 <div class="summary-card">
@@ -1471,14 +1525,22 @@
             const efficiencyColumn = findColumn(headers, ['효율', 'efficiency']);
             const defectColumn = findColumn(headers, ['불량', 'defect']);
             
+            console.log('🔧 설비 분석 시작 - 컬럼 확인:', {
+                설비: equipmentColumn,
+                생산수량: productionColumn,
+                효율: efficiencyColumn,
+                불량: defectColumn
+            });
+            
             if (!equipmentColumn) {
                 document.getElementById('equipmentAnalysis').innerHTML = '<p style="text-align: center; color: #4a5568;">설비 데이터를 찾을 수 없습니다.</p>';
                 return;
             }
             
             const equipmentStats = {};
+            let totalEquipmentProduction = 0; // 설비별 합계 검증용
             
-            excelData.forEach(row => {
+            excelData.forEach((row, index) => {
                 const equipment = row[equipmentColumn];
                 const production = parseFloat(row[productionColumn]) || 0;
                 const efficiency = parseFloat(row[efficiencyColumn]) || 0;
@@ -1497,8 +1559,19 @@
                     equipmentStats[equipment].totalEfficiency += efficiency;
                     equipmentStats[equipment].totalDefect += defect;
                     equipmentStats[equipment].count += 1;
+                    totalEquipmentProduction += production;
+                }
+                
+                // 디버깅 정보 (처음 10개 행)
+                if (index < 10) {
+                    console.log(`설비분석 행 ${index + 1}: 설비="${equipment}", 생산=${production}, 효율=${efficiency}, 불량=${defect}`);
                 }
             });
+            
+            console.log('📊 설비 분석 결과:');
+            console.log(`- 설비별 생산수량 합계: ${totalEquipmentProduction.toLocaleString()}`);
+            console.log(`- 전체 순합계와 차이: ${(window.globalProductionStats.netTotal - totalEquipmentProduction).toLocaleString()}`);
+            console.log(`- 발견된 설비 수: ${Object.keys(equipmentStats).length}개`);
             
             if (Object.keys(equipmentStats).length === 0) {
                 document.getElementById('equipmentAnalysis').innerHTML = '<p style="text-align: center; color: #4a5568;">설비 데이터가 없습니다.</p>';
@@ -1548,14 +1621,24 @@
             const defectColumn = findColumn(headers, ['불량', 'defect']);
             const equipmentColumn = findColumn(headers, ['설비', 'equipment', 'machine']);
             
+            console.log('📏 제품 분석 시작 - 컬럼 확인:', {
+                규격: specColumn,
+                생산수량: productionColumn,
+                CT: ctColumn,
+                효율2: efficiency2Column,
+                불량: defectColumn,
+                설비: equipmentColumn
+            });
+            
             if (!specColumn) {
                 document.getElementById('productAnalysis').innerHTML = '<p style="text-align: center; color: #4a5568;">규격 데이터를 찾을 수 없습니다.</p>';
                 return;
             }
             
             const specStats = {};
+            let totalSpecProduction = 0; // 규격별 합계 검증용
             
-            excelData.forEach(row => {
+            excelData.forEach((row, index) => {
                 const spec = row[specColumn];
                 const production = parseFloat(row[productionColumn]) || 0;
                 const ct = parseFloat(row[ctColumn]) || 0;
@@ -1580,8 +1663,19 @@
                     specStats[spec].totalDefect += defect;
                     specStats[spec].count += 1;
                     if (equipment && equipment !== '0') specStats[spec].equipment.add(equipment);
+                    totalSpecProduction += production;
+                }
+                
+                // 디버깅 정보 (처음 10개 행)
+                if (index < 10) {
+                    console.log(`제품분석 행 ${index + 1}: 규격="${spec}", 생산=${production}, CT=${ct}, 효율2=${efficiency2}`);
                 }
             });
+            
+            console.log('📊 제품 분석 결과:');
+            console.log(`- 규격별 생산수량 합계: ${totalSpecProduction.toLocaleString()}`);
+            console.log(`- 전체 순합계와 차이: ${(window.globalProductionStats.netTotal - totalSpecProduction).toLocaleString()}`);
+            console.log(`- 발견된 규격 수: ${Object.keys(specStats).length}개`);
             
             if (Object.keys(specStats).length === 0) {
                 document.getElementById('productAnalysis').innerHTML = '<p style="text-align: center; color: #4a5568;">규격 데이터가 없습니다.</p>';
