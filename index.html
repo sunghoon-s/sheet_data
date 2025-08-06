@@ -256,6 +256,44 @@
             }
         }
         
+        function createProcessMapping(data, processColumn, itemColumn) {
+            const mapping = {};
+            
+            if (!itemColumn) {
+                console.warn('품목 컬럼을 찾을 수 없어 공정번호를 추출할 수 없습니다.');
+                return mapping;
+            }
+            
+            data.forEach(row => {
+                const processName = row[processColumn];
+                const itemCode = row[itemColumn];
+                
+                if (processName && itemCode) {
+                    // 품목 코드에서 마지막 3자리 추출
+                    const processNumber = extractProcessNumber(itemCode);
+                    if (processNumber && !mapping[processName]) {
+                        mapping[processName] = processNumber;
+                    }
+                }
+            });
+            
+            return mapping;
+        }
+        
+        function extractProcessNumber(itemCode) {
+            if (!itemCode) return null;
+            
+            // 문자열로 변환하고 숫자만 추출
+            const codeStr = itemCode.toString();
+            const numbers = codeStr.replace(/[^\d]/g, ''); // 숫자가 아닌 문자 제거
+            
+            if (numbers.length >= 3) {
+                return numbers.slice(-3); // 마지막 3자리
+            }
+            
+            return null;
+        }
+
         function analyzeData() {
             if (excelData.length === 0) {
                 alert('데이터가 없습니다.');
@@ -270,6 +308,14 @@
                 header.includes('공정명') || 
                 header === '공정명' ||
                 header.toLowerCase().includes('process')
+            );
+            
+            // 품목 컬럼 찾기 (공정번호 추출용)
+            const itemColumn = headers.find(header => 
+                header.includes('품목') || 
+                header === '품목' ||
+                header.toLowerCase().includes('item') ||
+                header.toLowerCase().includes('product')
             );
             
             // 생산수량 컬럼 찾기
@@ -292,6 +338,9 @@
                 return;
             }
             
+            // 공정번호와 공정명 매핑 생성
+            const processMapping = createProcessMapping(excelData, processColumn, itemColumn);
+            
             // 공정명별 생산수량 집계
             const processResults = {};
             let totalValidRows = 0;
@@ -308,7 +357,8 @@
                         if (!processResults[processName]) {
                             processResults[processName] = {
                                 total: 0,
-                                count: 0
+                                count: 0,
+                                processNumber: processMapping[processName] || '000'
                             };
                         }
                         processResults[processName].total += numValue;
@@ -336,15 +386,23 @@
             const processResultsDiv = document.getElementById('process-results');
             let resultsHTML = '';
             
-            // 공정명별 결과를 총합계 기준으로 정렬
+            // 공정명별 결과를 공정번호 순으로 정렬
             const sortedProcesses = Object.entries(processResults)
-                .sort(([,a], [,b]) => b.total - a.total);
+                .sort(([,a], [,b]) => {
+                    const numA = parseInt(a.processNumber) || 999;
+                    const numB = parseInt(b.processNumber) || 999;
+                    return numA - numB;
+                });
             
             sortedProcesses.forEach(([processName, data]) => {
                 const percentage = ((data.total / grandTotal) * 100).toFixed(1);
+                const displayName = data.processNumber ? 
+                    `${processName} (${data.processNumber})` : 
+                    processName;
+                    
                 resultsHTML += `
                     <div class="process-item">
-                        <div class="process-name">${processName}</div>
+                        <div class="process-name">${displayName}</div>
                         <div class="process-quantity">
                             ${data.total.toLocaleString()} (${percentage}%)
                             <br><small>${data.count}건</small>
@@ -396,6 +454,9 @@
             const productionColumn = headers.find(header => 
                 header.includes('생산수량') || header === '생산수량' || header.toLowerCase().includes('production') || header.toLowerCase().includes('quantity')
             );
+            const itemColumn = headers.find(header => 
+                header.includes('품목') || header === '품목' || header.toLowerCase().includes('item') || header.toLowerCase().includes('product')
+            );
             
             // 해당 공정의 데이터만 필터링
             const processData = excelData.filter(row => row[processColumn] === processName);
@@ -405,11 +466,23 @@
                 return;
             }
             
+            // 공정번호 추출
+            let processNumber = null;
+            if (itemColumn) {
+                for (const row of processData) {
+                    const itemCode = row[itemColumn];
+                    if (itemCode) {
+                        processNumber = extractProcessNumber(itemCode);
+                        if (processNumber) break;
+                    }
+                }
+            }
+            
             // 분석 데이터 계산
             const analysis = analyzeProcessData(processData, processName, productionColumn, headers);
             
-            // 모달 내용 생성
-            displayProcessModal(processName, analysis);
+            // 모달 내용 생성 (공정번호 포함)
+            displayProcessModal(processName, analysis, processNumber);
         }
         
         function analyzeProcessData(processData, processName, productionColumn, headers) {
@@ -865,12 +938,16 @@
             }
         }
         
-        function displayProcessModal(processName, analysis) {
+        function displayProcessModal(processName, analysis, processNumber = null) {
             const modal = document.getElementById('processModal');
             const modalTitle = document.getElementById('modalTitle');
             const modalContent = document.getElementById('modalContent');
             
-            modalTitle.textContent = `${processName} 공정 상세 분석`;
+            const displayTitle = processNumber ? 
+                `${processName} (${processNumber}) 공정 상세 분석` : 
+                `${processName} 공정 상세 분석`;
+                
+            modalTitle.textContent = displayTitle;
             
             let contentHTML = '';
             
