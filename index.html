@@ -2,31 +2,220 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>엑셀 Data 분석</title>
-    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>엑셀 데이터 분석</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .result-box {
+            background: #e8f5e8;
+            border: 2px solid #4CAF50;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .total-sum {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2e7d32;
+        }
+        .data-info {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <div class="title-bar">
-            <h1>CSV Data 분석</h1>
-            <div class="button-group">
-                <input type="file" id="excel-file-input" accept=".xlsx,.xls,.csv" style="display:none">
-                <button id="analyze-btn" class="btn btn-primary">엑셀파일열기</button>
-                <button id="download-btn" class="btn btn-secondary" style="display: none;">CSV 다운로드</button>
+        <h1>엑셀 데이터 분석 - 생산수량 합계</h1>
+        
+        <button id="loadBtn" class="btn">data_erp.xlsx 파일 로드</button>
+        
+        <div id="result-container" style="display: none;">
+            <div class="result-box">
+                <h2>생산수량 총 합계</h2>
+                <div id="total-sum" class="total-sum">계산 중...</div>
+            </div>
+            
+            <div id="data-info" class="data-info">
+                <p><strong>데이터 정보:</strong></p>
+                <div id="info-details"></div>
+            </div>
+            
+            <div id="data-table-container">
+                <h3>데이터 미리보기 (상위 10개 행)</h3>
+                <table id="data-table"></table>
             </div>
         </div>
-
-        <div id="progress-container" style="display: none;">
-            <div class="progress-bar">
-                <div id="progress-fill"></div>
-            </div>
-            <div id="progress-text">데이터를 불러오는 중...</div>
-        </div>
-
-        <div id="data-table"></div>
     </div>
 
-    <script src="app.js"></script>
+    <script>
+        let excelData = [];
+        
+        document.getElementById('loadBtn').addEventListener('click', loadExcelFile);
+        
+        async function loadExcelFile() {
+            try {
+                const response = await fetch('data_erp.xlsx');
+                if (!response.ok) {
+                    throw new Error('파일을 찾을 수 없습니다.');
+                }
+                
+                const arrayBuffer = await response.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                
+                // 첫 번째 시트 읽기
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // JSON으로 변환 (첫 행을 헤더로 사용)
+                excelData = XLSX.utils.sheet_to_json(worksheet);
+                
+                console.log('로드된 데이터:', excelData);
+                
+                // 데이터 분석 및 표시
+                analyzeData();
+                
+            } catch (error) {
+                alert('파일 로드 중 오류가 발생했습니다: ' + error.message);
+                console.error(error);
+            }
+        }
+        
+        function analyzeData() {
+            if (excelData.length === 0) {
+                alert('데이터가 없습니다.');
+                return;
+            }
+            
+            // 생산수량 컬럼 찾기
+            const headers = Object.keys(excelData[0]);
+            console.log('헤더:', headers);
+            
+            const productionColumn = headers.find(header => 
+                header.includes('생산수량') || header === '생산수량'
+            );
+            
+            if (!productionColumn) {
+                alert('생산수량 컬럼을 찾을 수 없습니다.');
+                return;
+            }
+            
+            // 생산수량 총 합계 계산
+            let totalSum = 0;
+            let validRows = 0;
+            
+            excelData.forEach((row, index) => {
+                const value = row[productionColumn];
+                if (value !== null && value !== undefined && value !== '') {
+                    const numValue = parseFloat(value);
+                    if (!isNaN(numValue)) {
+                        totalSum += numValue;
+                        validRows++;
+                    }
+                }
+            });
+            
+            // 결과 표시
+            displayResults(totalSum, validRows, productionColumn);
+        }
+        
+        function displayResults(totalSum, validRows, columnName) {
+            // 결과 컨테이너 표시
+            document.getElementById('result-container').style.display = 'block';
+            
+            // 총 합계 표시
+            document.getElementById('total-sum').textContent = 
+                totalSum.toLocaleString() + ' (단위)';
+            
+            // 데이터 정보 표시
+            const infoDetails = document.getElementById('info-details');
+            infoDetails.innerHTML = `
+                <p>• 전체 행 수: ${excelData.length.toLocaleString()}개</p>
+                <p>• 유효한 생산수량 데이터: ${validRows.toLocaleString()}개</p>
+                <p>• 생산수량 컬럼명: "${columnName}"</p>
+                <p>• 평균 생산수량: ${validRows > 0 ? (totalSum / validRows).toFixed(2) : 0}</p>
+            `;
+            
+            // 데이터 테이블 표시 (상위 10개 행)
+            displayDataTable();
+        }
+        
+        function displayDataTable() {
+            const table = document.getElementById('data-table');
+            
+            if (excelData.length === 0) return;
+            
+            // 헤더 생성
+            const headers = Object.keys(excelData[0]);
+            let tableHTML = '<thead><tr>';
+            headers.forEach(header => {
+                tableHTML += `<th>${header}</th>`;
+            });
+            tableHTML += '</tr></thead><tbody>';
+            
+            // 상위 10개 행 표시
+            const previewData = excelData.slice(0, 10);
+            previewData.forEach(row => {
+                tableHTML += '<tr>';
+                headers.forEach(header => {
+                    const value = row[header] || '';
+                    tableHTML += `<td>${value}</td>`;
+                });
+                tableHTML += '</tr>';
+            });
+            
+            tableHTML += '</tbody>';
+            table.innerHTML = tableHTML;
+        }
+    </script>
 </body>
 </html>
