@@ -213,104 +213,84 @@
         }
         
         function generateProcessDetailHTML(processName, analysis, processNumber = null) {
-            const displayTitle = processNumber ? 
-                `${processName} (${processNumber}) 공정 상세 분석` : 
-                `${processName} 공정 상세 분석`;
+            try {
+                if (!analysis) {
+                    return `
+                        <div class="process-detail" style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #dc3545;">
+                            <h3 style="color: #dc3545; margin-bottom: 20px;">${processName} - 분석 데이터 없음</h3>
+                            <p style="color: #666;">분석할 데이터가 없습니다.</p>
+                        </div>
+                    `;
+                }
+
+                const displayTitle = processNumber ? 
+                    `${processName} (${processNumber}) 공정 상세 분석` : 
+                    `${processName} 공정 상세 분석`;
+                    
+                let contentHTML = `
+                    <div class="process-detail" style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #007bff;">
+                        <h3 style="color: #007bff; margin-bottom: 20px;">${displayTitle}</h3>
+                `;
                 
-            let contentHTML = `
-                <div class="process-detail" style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #007bff;">
-                    <h3 style="color: #007bff; margin-bottom: 20px;">${displayTitle}</h3>
-            `;
-            
-            // 1) 생산 현황 종합
-            if (analysis.productionSummary) {
-                const summary = analysis.productionSummary;
-                contentHTML += `
-                    <h4 style="color: #333; margin: 15px 0 10px 0;">📊 1) 생산 현황 종합</h4>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 15px;">
-                        <div style="background: white; padding: 10px; border-radius: 4px; text-align: center;">
-                            <div style="font-size: 18px; font-weight: bold; color: #007bff;">${summary.totalProduction.toLocaleString()}</div>
-                            <div style="font-size: 12px; color: #666;">총 생산수량</div>
+                // 1) 생산 현황 종합
+                if (analysis.productionSummary) {
+                    const summary = analysis.productionSummary;
+                    contentHTML += `
+                        <h4 style="color: #333; margin: 15px 0 10px 0;">📊 1) 생산 현황 종합</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 15px;">
+                            <div style="background: white; padding: 10px; border-radius: 4px; text-align: center;">
+                                <div style="font-size: 18px; font-weight: bold; color: #007bff;">${(summary.totalProduction || 0).toLocaleString()}</div>
+                                <div style="font-size: 12px; color: #666;">총 생산수량</div>
+                            </div>
+                            <div style="background: white; padding: 10px; border-radius: 4px; text-align: center;">
+                                <div style="font-size: 18px; font-weight: bold; color: #007bff;">${summary.equipmentCount || 0}</div>
+                                <div style="font-size: 12px; color: #666;">투입설비 대수</div>
+                            </div>
+                            <div style="background: white; padding: 10px; border-radius: 4px; text-align: center;">
+                                <div style="font-size: 18px; font-weight: bold; color: #007bff;">${summary.workerCount || 0}</div>
+                                <div style="font-size: 12px; color: #666;">투입인원 수</div>
+                            </div>
+                            <div style="background: white; padding: 10px; border-radius: 4px; text-align: center;">
+                                <div style="font-size: 18px; font-weight: bold; color: #007bff;">${(summary.totalWorkTime || 0).toLocaleString()}</div>
+                                <div style="font-size: 12px; color: #666;">총 작업시간</div>
+                            </div>
+                            <div style="background: white; padding: 10px; border-radius: 4px; text-align: center;">
+                                <div style="font-size: 18px; font-weight: bold; color: #007bff;">${summary.avgUPH || 'N/A'}</div>
+                                <div style="font-size: 12px; color: #666;">평균 UPH</div>
+                            </div>
                         </div>
-                        <div style="background: white; padding: 10px; border-radius: 4px; text-align: center;">
-                            <div style="font-size: 18px; font-weight: bold; color: #007bff;">${summary.equipmentCount}</div>
-                            <div style="font-size: 12px; color: #666;">투입설비 대수</div>
-                        </div>
-                        <div style="background: white; padding: 10px; border-radius: 4px; text-align: center;">
-                            <div style="font-size: 18px; font-weight: bold; color: #007bff;">${summary.workerCount}</div>
-                            <div style="font-size: 12px; color: #666;">투입인원 수</div>
-                        </div>
-                        <div style="background: white; padding: 10px; border-radius: 4px; text-align: center;">
-                            <div style="font-size: 18px; font-weight: bold; color: #007bff;">${summary.totalWorkTime.toLocaleString()}</div>
-                            <div style="font-size: 12px; color: #666;">총 작업시간</div>
-                        </div>
-                        <div style="background: white; padding: 10px; border-radius: 4px; text-align: center;">
-                            <div style="font-size: 18px; font-weight: bold; color: #007bff;">${summary.avgUPH}</div>
-                            <div style="font-size: 12px; color: #666;">평균 UPH</div>
-                        </div>
+                    `;
+                }
+                
+                // 종합 인사이트만 간단히 표시
+                try {
+                    if (typeof generateComprehensiveInsights === 'function') {
+                        const insights = generateComprehensiveInsights(analysis);
+                        if (insights) {
+                            contentHTML += `
+                                <h4 style="color: #333; margin: 15px 0 10px 0;">� 종합 분석 인사이트</h4>
+                                <div style="background: #e8f5e8; padding: 15px; border-radius: 6px; margin: 10px 0; font-size: 13px;">
+                                    ${insights}
+                                </div>
+                            `;
+                        }
+                    }
+                } catch (insightError) {
+                    console.warn('인사이트 생성 중 오류:', insightError);
+                }
+                
+                contentHTML += `</div>`;
+                return contentHTML;
+                
+            } catch (error) {
+                console.error('상세 분석 생성 중 오류:', error);
+                return `
+                    <div class="process-detail" style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #dc3545;">
+                        <h3 style="color: #dc3545; margin-bottom: 20px;">${processName || '알 수 없음'} 공정 분석 오류</h3>
+                        <p style="color: #666;">상세 분석 중 오류가 발생했습니다: ${error.message}</p>
                     </div>
                 `;
             }
-            
-            // 2) 설비별 분석
-            if (analysis.equipmentAnalysis && Object.keys(analysis.equipmentAnalysis).length > 0) {
-                contentHTML += `<h4 style="color: #333; margin: 15px 0 10px 0;">🔧 2) 설비별 생산성 분석</h4>`;
-                contentHTML += `<div style="overflow-x: auto; background: white; border-radius: 4px; margin-bottom: 15px;">`;
-                contentHTML += `<table style="width: 100%; border-collapse: collapse;">`;
-                contentHTML += `<thead><tr style="background: #f0f0f0;">
-                    <th style="padding: 8px; border: 1px solid #ddd; font-size: 12px;">설비명</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; font-size: 12px;">생산성</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; font-size: 12px;">가동율(%)</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; font-size: 12px;">불량율(%)</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; font-size: 12px;">소요인원</th>
-                </tr></thead><tbody>`;
-                
-                Object.entries(analysis.equipmentAnalysis).forEach(([equipment, stats]) => {
-                    contentHTML += `<tr>
-                        <td style="padding: 6px; border: 1px solid #ddd; font-size: 11px;">${equipment}</td>
-                        <td style="padding: 6px; border: 1px solid #ddd; font-size: 11px;">${stats.productivity}</td>
-                        <td style="padding: 6px; border: 1px solid #ddd; font-size: 11px;">${stats.operationRate}%</td>
-                        <td style="padding: 6px; border: 1px solid #ddd; font-size: 11px;">${stats.defectRate}%</td>
-                        <td style="padding: 6px; border: 1px solid #ddd; font-size: 11px;">${stats.requiredWorkers}명</td>
-                    </tr>`;
-                });
-                contentHTML += `</tbody></table></div>`;
-            }
-            
-            // 3) 작업자별 분석
-            if (analysis.workerAnalysis && Object.keys(analysis.workerAnalysis).length > 0) {
-                contentHTML += `<h4 style="color: #333; margin: 15px 0 10px 0;">👨‍🔧 3) 작업자별 생산성 분석</h4>`;
-                contentHTML += `<div style="overflow-x: auto; background: white; border-radius: 4px; margin-bottom: 15px;">`;
-                contentHTML += `<table style="width: 100%; border-collapse: collapse;">`;
-                contentHTML += `<thead><tr style="background: #f0f0f0;">
-                    <th style="padding: 8px; border: 1px solid #ddd; font-size: 12px;">작업자</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; font-size: 12px;">생산성</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; font-size: 12px;">불량율(%)</th>
-                    <th style="padding: 8px; border: 1px solid #ddd; font-size: 12px;">설비 운영 수</th>
-                </tr></thead><tbody>`;
-                
-                Object.entries(analysis.workerAnalysis).forEach(([worker, stats]) => {
-                    contentHTML += `<tr>
-                        <td style="padding: 6px; border: 1px solid #ddd; font-size: 11px;">${worker}</td>
-                        <td style="padding: 6px; border: 1px solid #ddd; font-size: 11px;">${stats.productivity}</td>
-                        <td style="padding: 6px; border: 1px solid #ddd; font-size: 11px;">${stats.defectRate}%</td>
-                        <td style="padding: 6px; border: 1px solid #ddd; font-size: 11px;">${stats.equipmentCount}대</td>
-                    </tr>`;
-                });
-                contentHTML += `</tbody></table></div>`;
-            }
-            
-            // 종합 인사이트
-            contentHTML += `
-                <h4 style="color: #333; margin: 15px 0 10px 0;">💡 종합 분석 인사이트</h4>
-                <div style="background: #e8f5e8; padding: 15px; border-radius: 6px; margin: 10px 0; font-size: 13px;">
-                    ${generateComprehensiveInsights(analysis)}
-                </div>
-            `;
-            
-            contentHTML += `</div>`;
-            
-            return contentHTML;
         }
 
         function createProcessMapping(data, processColumn, itemColumn) {
@@ -432,10 +412,10 @@
             });
             
             // 결과 표시
-            displayProcessResults(processResults, processColumn, productionColumn, totalValidRows, totalInvalidRows, grandTotal);
+            displayProcessResults(processResults, processColumn, productionColumn, totalValidRows, totalInvalidRows, grandTotal, headers);
         }
         
-        function displayProcessResults(processResults, processColumnName, productionColumnName, totalValidRows, totalInvalidRows, grandTotal) {
+        function displayProcessResults(processResults, processColumnName, productionColumnName, totalValidRows, totalInvalidRows, grandTotal, headers) {
             // 결과 컨테이너 표시
             document.getElementById('result-container').style.display = 'block';
             
@@ -468,9 +448,9 @@
                 `;
                 
                 // 각 공정별 상세 분석 내용 추가
-                const processData = excelData.filter(row => row[processColumn] === processName);
+                const processData = excelData.filter(row => row[processColumnName] === processName);
                 if (processData.length > 0) {
-                    const analysis = analyzeProcessData(processData, processName, productionColumn, headers);
+                    const analysis = analyzeProcessData(processData, processName, productionColumnName, headers);
                     const processNumber = data.processNumber;
                     resultsHTML += generateProcessDetailHTML(processName, analysis, processNumber);
                 }
